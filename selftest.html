@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Self-test · Math Adventure Lëtzebuerg</title>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; max-width: 980px; margin: 24px auto; padding: 0 16px; color: #1e293b; }
+  h1 { font-size: 1.4rem; } button { font: inherit; padding: 8px 16px; border-radius: 8px; border: 1px solid #0b6e99; background: #0b6e99; color: #fff; cursor: pointer; }
+  select { font: inherit; padding: 6px; } pre { background: #f1f5f9; padding: 12px; border-radius: 8px; white-space: pre-wrap; }
+  .ok { color: #166534; font-weight: 700; } .bad { color: #b91c1c; font-weight: 700; }
+  table { border-collapse: collapse; font-size: 13px; } td, th { border: 1px solid #cbd5e1; padding: 2px 8px; text-align: right; } td:first-child { text-align: left; }
+  #figs svg { max-width: 220px; height: auto; border: 1px solid #e2e8f0; margin: 4px; }
+</style>
+<link rel="stylesheet" href="css/app.css" media="not all" id="appcss">
+</head>
+<body>
+<h1>Automated self-test</h1>
+<p>Generates random instances of every exercise template at every level and checks the answer key, multiple-choice uniqueness, value ranges and the rendering of every text in Romanian, English, French, German and Luxembourgish. The same checks run in Node with <code>node tools/selftest.js</code>.</p>
+<p>Instances per template and level:
+  <select id="n"><option>100</option><option selected>1000</option></select>
+  <button id="go">Run self-test</button></p>
+<div id="status"></div>
+<pre id="out"></pre>
+<div id="table"></div>
+<h2>Figure rendering sample</h2>
+<p>One figure from each template that has one, drawn by the real SVG code (check visually that nothing is cut off).</p>
+<div id="figs"></div>
+
+<script src="lang/fr.js"></script><script src="lang/de.js"></script><script src="lang/lb.js"></script><script src="lang/en.js"></script><script src="lang/ro.js"></script>
+<script src="js/core/core.js"></script><script src="js/core/i18n.js"></script><script src="js/core/numwords.js"></script><script src="js/core/expr.js"></script><script src="js/core/check.js"></script>
+<script src="js/figures/figures.js"></script><script src="js/data/curriculum.js"></script><script src="js/data/map.js"></script>
+<script src="js/templates/registry.js"></script><script src="js/templates/no_numbers.js"></script><script src="js/templates/no_operations.js"></script>
+<script src="js/templates/ef_geometry.js"></script><script src="js/templates/gm_measures.js"></script><script src="js/templates/rp_problems.js"></script>
+<script src="tools/selftest-core.js"></script>
+<script>
+  document.getElementById('go').onclick = () => {
+    const out = document.getElementById('out'), st = document.getElementById('status');
+    out.textContent = ''; st.textContent = 'Running … (about half a minute for 1000 per template and level)';
+    setTimeout(() => {
+      const lines = [];
+      const rep = MQ.selftest.run({ n: +document.getElementById('n').value, log: s => lines.push(s) });
+      out.textContent = lines.join('\n');
+      st.innerHTML = rep.errors.length ? `<span class="bad">✗ ${rep.errors.length} problem(s) found</span>` : `<span class="ok">✓ All checks passed: ${rep.instances.toLocaleString('en')} instances × 5 languages</span>`;
+      document.getElementById('table').innerHTML = '<table><tr><th>Template</th><th>Instances</th><th>Failing</th></tr>' +
+        Object.entries(rep.perTemplate).map(([k, v]) => `<tr><td>${k}</td><td>${v.instances}</td><td>${v.failing}</td></tr>`).join('') + '</table>';
+    }, 50);
+  };
+  // figure sample
+  document.getElementById('appcss').media = 'all';
+  const figs = document.getElementById('figs');
+  MQ.T.list.forEach(tp => {
+    const ex = MQ.T.make(tp.id, tp.levels[tp.levels.length - 1], 42); const f = ex.figure; if (!f) return;
+    const html = typeof f === 'function' ? f('fr') : typeof f === 'string' ? f : MQ.fmtVal(f.htmlFig, 'fr');
+    const d = document.createElement('div'); d.style.display = 'inline-block'; d.style.verticalAlign = 'top'; d.innerHTML = `<div style="font-size:12px">${tp.id}</div>` + html; figs.appendChild(d);
+  });
+</script>
+</body>
+</html>
