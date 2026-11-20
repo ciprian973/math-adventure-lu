@@ -81,6 +81,13 @@
     },
 
     renderErrors(box, p) {
+      const sk = Object.entries(p.skips || {}).sort((a, b) => b[1] - a[1]);
+      if (sk.length) {
+        const st = tp => (MQ.T.list.find(x => x.id === tp) || {}).stage;
+        const tb = h('table', { class: 'dtable' });
+        tb.innerHTML = `<caption>⏭ ${t('dash.skips')}</caption><tr><th>${t('dash.stage')}</th><th>${t('dash.skipEx')}</th><th>n</th></tr>` + sk.map(([tp, n]) => `<tr><td>${st(tp) ? t('stage.' + st(tp)) : ''}</td><td>${t('t.' + tp + '.title')}</td><td>${n}</td></tr>`).join('');
+        box.appendChild(h('p', { class: 'small' }, t('dash.skipsNote'))); box.appendChild(tb);
+      }
       const list = Object.entries(p.errors).sort((a, b) => b[1] - a[1]).slice(0, 12);
       if (!list.length) { box.appendChild(h('p', {}, t('dash.noErrors'))); return; }
       box.appendChild(h('p', { class: 'small' }, t('dash.errorsNote')));
@@ -128,7 +135,7 @@
         const tbl = h('table', { class: 'dtable' });
         tbl.innerHTML = `<tr><th>${t('dash.setPupil')}</th><th>${t('dash.setAssigned')}</th><th>${t('dash.setResult')}</th></tr>` + ps.map(pp => {
           const run = (pp.setRuns || {})['s:' + set.id]; const sm = run ? MQ.sets.summary(run) : null;
-          return `<tr><td>${esc(pp.name)}</td><td><input type="checkbox" data-p="${pp.id}" ${set.assigned.includes(pp.id) ? 'checked' : ''} aria-label="${esc(t('dash.setAssigned') + ': ' + pp.name)}"></td><td>${!sm || !sm.done ? t('dash.setNotStarted') : t('ui.setScore', { a: sm.correct, b: sm.n }) + ` <span class="small">(${t('ui.setDetail', { f: sm.first, l: sm.later, w: sm.wrong })}${sm.complete ? '' : ' · ' + t('ui.setProgress', { d: sm.done, n: sm.n })})</span>`}</td></tr>`;
+          return `<tr><td>${esc(pp.name)}</td><td><input type="checkbox" data-p="${pp.id}" ${set.assigned.includes(pp.id) ? 'checked' : ''} aria-label="${esc(t('dash.setAssigned') + ': ' + pp.name)}"></td><td>${!sm || !sm.done ? t('dash.setNotStarted') : t('ui.setScore', { a: sm.correct, b: sm.n }) + ` <span class="small">(${t('ui.setDetail', { f: sm.first, l: sm.later, w: sm.wrong })}${sm.skipped ? ' · ' + t('ui.setSkipped', { s: sm.skipped }) : ''}${sm.complete ? '' : ' · ' + t('ui.setProgress', { d: sm.done, n: sm.n })})</span>`}</td></tr>`;
         }).join('');
         tbl.querySelectorAll('input[data-p]').forEach(cb => cb.onchange = () => MQ.sets.toggleAssign(set.id, cb.dataset.p, cb.checked));
         c.appendChild(tbl);

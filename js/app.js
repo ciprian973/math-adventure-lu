@@ -307,7 +307,7 @@
       if (!this.canNavigate() || this.pos < 0) return; const it = this.items[this.pos];
       Object.assign(it, { ex: this.ex, stage: this.stage, tries: this.tries, hints: this.hints, done: this.done, lastRes: this.lastRes ? { kind: this.lastRes.kind, fb: this.lastRes.fb || null, praise: this.lastRes.praise, xp: this.lastRes.ev ? this.lastRes.ev.xp : this.lastRes.xp } : null, redo: !!this.redo });
       if (!this.done && this.widget) it.resp = this.widget.get();
-      if (this.mode === 'set') { this.run.state[this.pos] = { tries: it.tries, hints: it.hints, done: it.done, correct: !!it.correct, firstTry: !!it.firstTry, lastRes: it.lastRes, redo: it.redo, resp: it.resp || null }; this.run.pos = this.pos; this.run.updated = Date.now(); G.save(); }
+      if (this.mode === 'set') { this.run.state[this.pos] = { tries: it.tries, hints: it.hints, done: it.done, correct: !!it.correct, firstTry: !!it.firstTry, lastRes: it.lastRes, redo: it.redo, skipped: !!it.skipped, resp: it.resp || null }; this.run.pos = this.pos; this.run.updated = Date.now(); G.save(); }
     }
     load(i) {
       const it = this.items[i]; this.pos = i; this.ex = it.ex; this.stage = it.stage || it.ex.stage;
@@ -323,9 +323,11 @@
       this.redo = false;
       this.stage = this.mode === 'boss' ? this.queue[this.count] : this.params.stage;
       const tpls = MQ.T.forStage(this.stage).map(x => x.id);
-      const avail = tpls.filter(x => !this.recent.slice(-Math.min(2, tpls.length - 1)).includes(x));
+      const notSkipped = tpls.filter(x => !(this.skipTpl && this.skipTpl.has(x)));
+      const pool = notSkipped.length ? notSkipped : tpls;
+      const avail = pool.filter(x => !this.recent.slice(-Math.min(2, pool.length - 1)).includes(x));
       const r = MQ.RNG((Date.now() ^ (Math.random() * 1e9)) >>> 0);
-      const id = r.pick(avail.length ? avail : tpls); this.recent.push(id);
+      const id = r.pick(avail.length ? avail : pool); this.recent.push(id);
       this.ex = MQ.T.make(id, this.pickLevel(this.stage), r.int(1, 2 ** 30));
       this.tries = 0; this.hints = 0; this.t0 = Date.now(); this.done = false; this.lastRes = null;
       if (this.mode === 'practice') { this.items.push({ ex: this.ex, stage: this.stage }); if (this.items.length > 30) this.items.shift(); this.pos = this.items.length - 1; this.widget = null; this.restoring = { resp: null }; }
@@ -380,10 +382,11 @@
       this.btnCheck = h('button', { class: 'btn primary big', type: 'button' }, '✔ ' + t('ui.check')); this.btnCheck.onclick = () => this.submit();
       this.btnNext = h('button', { class: 'btn primary big', type: 'button' }, t('ui.next') + ' →'); this.btnNext.onclick = () => this.advance();
       this.btnShow = h('button', { class: 'btn', type: 'button' }, t('ui.showSolution')); this.btnShow.onclick = () => this.giveUp();
+      this.btnSkip = h('button', { class: 'btn skipbtn', type: 'button', title: t('ui.skipTitle') }, '⏭ ' + t('ui.skip')); this.btnSkip.onclick = () => this.skip();
       this.btnRedo = h('button', { class: 'btn', type: 'button' }, '↺ ' + t('ui.redo')); this.btnRedo.onclick = () => this.redoCur();
       if (this.mode === 'set' && this.pos === this.items.length - 1) this.btnNext.textContent = t('ui.setFinish') + ' ✓';
       if (this.hints >= 3 || this.mode === 'blitz') this.btnHint.disabled = true;
-      btns.append(this.btnHint, this.btnShow, this.btnRedo, this.btnCheck, this.btnNext);
+      btns.append(this.btnSkip, this.btnHint, this.btnShow, this.btnRedo, this.btnCheck, this.btnNext);
       card.appendChild(btns); m.appendChild(card);
       this.fbEl = fb; this.updateButtons();
       if (this.lastRes) this.showFeedback(this.lastRes, true);
@@ -392,9 +395,10 @@
     updateButtons() {
       this.btnCheck.hidden = this.done; this.btnNext.hidden = !this.done && !(this.mode === 'set' || (this.mode === 'practice' && this.pos < this.items.length - 1));
       if (this.btnRedo) this.btnRedo.hidden = !(this.canNavigate() && this.done && this.lastRes && this.lastRes.kind === 'solution');
-      if (this.navEl) this.navEl.querySelectorAll('[data-i]').forEach(b => { const it = this.items[+b.dataset.i]; const d = +b.dataset.i === this.pos ? { done: this.done, correct: this.done && this.lastRes && this.lastRes.kind === 'ok' } : it; b.className = 'navdot' + (+b.dataset.i === this.pos ? ' cur' : '') + (d.done ? (d.correct ? ' ok' : ' bad') : ''); });
+      if (this.navEl) this.navEl.querySelectorAll('[data-i]').forEach(b => { const it = this.items[+b.dataset.i]; const d = +b.dataset.i === this.pos ? { done: this.done, correct: this.done && this.lastRes && this.lastRes.kind === 'ok' } : it; b.className = 'navdot' + (+b.dataset.i === this.pos ? ' cur' : '') + (d.done ? (d.correct ? ' ok' : ' bad') : (it.skipped ? ' skipped' : '')); });
       this.btnShow.hidden = this.done || this.tries === 0 || this.mode === 'blitz';
       this.btnHint.hidden = this.done;
+      if (this.btnSkip) this.btnSkip.hidden = this.done;
     }
     submit() {
       if (this.done) return;
@@ -409,6 +413,17 @@
       if (res.correct) { this.finish(true, res); }
       else if (this.tries >= maxTries) { this.finish(false, res); }
       else { MQ.audio.play('retry'); this.lastRes = { kind: 'retry', fb: res.fb, res }; this.widget.mark && this.widget.mark(res); this.showFeedback(this.lastRes); this.updateButtons(); }
+    }
+    /* skip: no XP, no statistics, no mastery change — only counted (for the adult) as "skipped" */
+    skip() {
+      if (this.done || this.finished) return;
+      const p = this.p; p.skips = p.skips || {}; p.skips[this.ex.tpl] = (p.skips[this.ex.tpl] || 0) + 1; G.save();
+      MQ.audio.play('tap'); App.toast('⏭ ' + t('ui.skippedToast'));
+      if (this.mode === 'set') { const it = this.items[this.pos]; it.skipped = true; this.saveCur(); return this.advance(); }
+      if (this.mode === 'blitz') return this.advance();
+      (this.skipTpl = this.skipTpl || new Set()).add(this.ex.tpl); this.recent.push(this.ex.tpl);
+      if (this.mode === 'practice') { this.items[this.pos].skipped = true; return this.next(false, true); }
+      this.next();                                   // boss: another question of the same topic replaces it
     }
     giveUp() { this.tries = Math.max(this.tries, 2); this.finish(false, { fb: null }); }
     finish(correct, res) {
@@ -465,13 +480,13 @@
     finishSet() {
       this.main.querySelector('.excard') && this.main.querySelector('.excard').remove();
       const sm = MQ.sets.summary(this.run); if (sm.correct === sm.n) { MQ.audio.play('badge'); App.confetti(); }
-      const c = h('section', { class: 'excard result' }, `${MQ.mascot(this.p.avatar, 110)}<h2>${t(sm.complete ? 'ui.setDone' : 'ui.setNotDone')}</h2><p>${t('ui.setScore', { a: sm.correct, b: sm.n })}</p><p class="small">${t('ui.setDetail', { f: sm.first, l: sm.later, w: sm.wrong })}</p>${sm.wrong ? `<p>${t('ui.setRedoHint')}</p>` : ''}`);
+      const c = h('section', { class: 'excard result' }, `${MQ.mascot(this.p.avatar, 110)}<h2>${t(sm.complete ? 'ui.setDone' : 'ui.setNotDone')}</h2><p>${t('ui.setScore', { a: sm.correct, b: sm.n })}</p><p class="small">${t('ui.setDetail', { f: sm.first, l: sm.later, w: sm.wrong })}${sm.skipped ? ' · ' + t('ui.setSkipped', { s: sm.skipped }) : ''}</p>${sm.wrong ? `<p>${t('ui.setRedoHint')}</p>` : ''}${sm.skipped ? `<p>${t('ui.setSkipHint')}</p>` : ''}`);
       const row = h('div', { class: 'brow' });
       const back = h('button', { class: 'btn primary', type: 'button' }, '📚 ' + t('ui.sets')); back.onclick = () => App.go('sets');
       const again = h('button', { class: 'btn', type: 'button' }, '↺ ' + t('ui.restartSet')); again.onclick = () => App.modal(`<p>${t('ui.confirmRestart')}</p>`, [{ label: t('ui.restartSet'), cls: 'primary', fn: () => { MQ.sets.restart(this.p, this.run.key); App.go('play', { mode: 'set', key: this.run.key }); } }, { label: t('ui.cancel') }]);
       row.append(back, again); c.appendChild(row); this.main.appendChild(c); this.updateNavOnly();
     }
-    updateNavOnly() { if (this.navEl) this.navEl.querySelectorAll('[data-i]').forEach(b => { const it = this.items[+b.dataset.i]; b.className = 'navdot' + (it.done ? (it.correct ? ' ok' : ' bad') : ''); }); }
+    updateNavOnly() { if (this.navEl) this.navEl.querySelectorAll('[data-i]').forEach(b => { const it = this.items[+b.dataset.i]; b.className = 'navdot' + (it.done ? (it.correct ? ' ok' : ' bad') : (it.skipped ? ' skipped' : '')); }); }
     finishBoss(rerender) {
       this.finished = true; const sc = this.score, n = this.bossTotal; const st = sc >= n ? 3 : sc >= n - 2 ? 2 : sc >= n / 2 ? 1 : 0;
       if (!rerender) { this.p.boss[this.region.id] = Math.max(this.p.boss[this.region.id] || 0, st); G.checkBadges(this.p).forEach(b => App.toast(`🏅 ${t('ui.newBadge', { b: { k: 'badge.' + b } })}`)); G.save(); }

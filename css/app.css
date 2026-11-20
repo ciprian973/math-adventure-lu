@@ -284,3 +284,5 @@ body.contrast .hero, body.contrast .maptop.banner { background: #fff; }
 @media (max-width: 640px) { .hero { flex-direction: column; text-align: center; } .hero img { width: 60%; } }
 @media print { .hero, .posters { display: none; } }
 @media (max-width: 380px) { .pchip .streak { display: none; } .pchip b { max-width: 5em; } }
+.navdot.skipped { border-style: dashed; color: var(--muted); background: #f1f5f9; }
+.btn.skipbtn { border-color: var(--line); color: var(--muted); margin-right: auto; }

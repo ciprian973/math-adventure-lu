@@ -66,7 +66,8 @@
       const done = st.filter(s => s.done).length;
       const first = st.filter(s => s.done && s.correct && s.firstTry).length;
       const later = st.filter(s => s.done && s.correct && !s.firstTry).length;
-      return { n, done, first, later, correct: first + later, wrong: done - first - later, complete: done === n };
+      const skipped = st.filter(s => !s.done && s.skipped).length;
+      return { n, done, first, later, skipped, correct: first + later, wrong: done - first - later, complete: done + skipped === n };
     }
   };
   if (typeof module !== 'undefined') module.exports = S;
