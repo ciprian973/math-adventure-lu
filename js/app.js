@@ -90,12 +90,26 @@
   const Screens = {
     /* ---------------- who is playing? ---------------- */
     profiles(main) {
-      main.appendChild(h('h1', {}, t('ui.whoPlays')));
+      const hero = h('div', { class: 'hero' }, `<img src="assets/img/leo-hero.webp" alt="${esc(t('ui.heroAlt'))}" width="480" height="432" onerror="this.remove()"><div class="herotext"><h1>${t('app.title')}</h1><p>${t('ui.heroSub')}</p></div>`);
+      main.appendChild(hero);
+      main.appendChild(h('h2', {}, t('ui.whoPlays')));
       const grid = h('div', { class: 'profgrid' });
       G.profiles().forEach(p => { const b = h('button', { class: 'prof', type: 'button' }, `${MQ.mascot(p.avatar, 84)}<b>${esc(p.name)}</b><small>${t('ui.level', { n: G.levelOf(p.xp) })} · ${p.xp} XP</small>`); b.onclick = () => { G.setActive(p.id); App.header(); App.go('map'); }; grid.appendChild(b); });
       const add = h('button', { class: 'prof add', type: 'button' }, `<span class="plus">+</span><b>${t('ui.newPlayer')}</b>`); add.onclick = () => App.go('newProfile'); grid.appendChild(add);
       main.appendChild(grid);
       main.appendChild(h('p', { class: 'privacy' }, t('ui.privacy')));
+      const ab = h('button', { class: 'btn linkish', type: 'button' }, 'ℹ️ ' + t('ui.about')); ab.onclick = () => App.go('about'); main.appendChild(ab);
+    },
+
+    /* ---------------- about the app (presentation posters) ---------------- */
+    about(main) {
+      const back = h('button', { class: 'btn back', type: 'button' }, '← ' + t('ui.back')); back.onclick = () => App.go(G.active() ? 'map' : 'profiles'); main.appendChild(back);
+      main.appendChild(h('h1', {}, 'ℹ️ ' + t('ui.about')));
+      main.appendChild(h('p', {}, t('ui.aboutText')));
+      main.appendChild(h('p', { class: 'small' }, t('ui.posterNote')));
+      const g = h('div', { class: 'posters' });
+      [['poster-journey', 'ui.posterAlt2'], ['poster-idea', 'ui.posterAlt1']].forEach(([f, k]) => g.appendChild(h('figure', {}, `<img src="assets/img/${f}.webp" alt="${esc(t(k))}" width="1200" height="800" loading="lazy" onerror="this.closest('figure').remove()">`)));
+      main.appendChild(g);
     },
     newProfile(main) {
       main.appendChild(h('h1', {}, t('ui.newPlayer')));
@@ -109,7 +123,7 @@
     map(main) {
       const p = G.active(); if (!p) return App.go('profiles');
       const q = G.quest(p);
-      const top = h('div', { class: 'maptop' });
+      const top = h('div', { class: 'maptop banner' });
       top.innerHTML = `<div class="hello">${MQ.mascot(p.avatar, 72)}<div><h1>${t('ui.hello', { n: esc(p.name) })}</h1><p>${t('ui.mapIntro')}</p></div></div>`;
       const qb = h('button', { class: 'quest ' + (q.done ? 'done' : ''), type: 'button' }, `<b>📜 ${t('ui.dailyQuest')}</b><span>${q.done ? t('ui.questDone') : t('ui.questProgress', { n: q.tasks.filter(k => k.n >= k.goal).length })}</span>`);
       qb.onclick = () => Screens.questModal(p); top.appendChild(qb);
@@ -243,6 +257,7 @@
       c.querySelector('#sr').oninput = e => { s.rate = +e.target.value; G.save(); };
       c.querySelector('#mu').onchange = e => { s.mute = e.target.checked; G.save(); App.header(); };
       main.appendChild(c);
+      const ab = h('button', { class: 'btn linkish', type: 'button' }, 'ℹ️ ' + t('ui.about')); ab.onclick = () => App.go('about'); main.appendChild(ab);
       const back = h('button', { class: 'btn', type: 'button' }, '← ' + t('ui.back')); back.onclick = () => App.go(G.active() ? 'map' : 'profiles'); main.appendChild(back);
     },
 

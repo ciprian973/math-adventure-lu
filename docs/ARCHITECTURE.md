@@ -20,6 +20,7 @@
 ```
 index.html            entry point; loads the scripts in order, no build step
 lang/xx.js            all texts, one file per language (window.I18N_DATA["xx"] = {…})
+assets/img/           illustrations: Léo on the welcome screen, Luxembourg City banner on the map, the two presentation posters (About)
 css/app.css           layout, themes (dyslexia font, high contrast, text size), print styles
 js/core/core.js       exact fractions (MQ.Q, BigInt where needed), seeded RNG, locale number/time/date formatting and parsing
 js/core/i18n.js       t(key, vars), plural forms (Intl.PluralRules), typed variables (numbers, fractions, money, units, times, dates, expressions, number words)

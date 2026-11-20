@@ -258,3 +258,13 @@ main:focus{outline:none}
 .stagepick .rgroup { display: flex; flex-direction: column; gap: .1rem; }
 .setcard h3 small { font-weight: 400; color: var(--muted); }
 .quickset { display: flex; flex-wrap: wrap; gap: .8rem; align-items: flex-end; }
+/* ---------- illustrations ---------- */
+.hero { display: flex; align-items: center; gap: 1.2rem; background: linear-gradient(135deg, #fff7e6, #e8f4fb); border-radius: var(--radius); padding: .8rem 1.2rem; margin-bottom: 1rem; box-shadow: var(--shadow); overflow: hidden; }
+.hero img { width: min(240px, 40%); height: auto; border-radius: 18px; flex: none; }
+.hero h1 { margin: 0 0 .3rem; font-size: 1.8rem; } .hero p { margin: 0; color: var(--muted); font-size: 1.05rem; }
+.maptop.banner { background: linear-gradient(to right, rgba(244,248,252,.97) 0%, rgba(244,248,252,.93) 50%, rgba(244,248,252,.35) 100%), url('../assets/img/banner-city.webp') center / cover no-repeat; border-radius: var(--radius); padding: .7rem 1rem; }
+.posters { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; } .posters figure { margin: 0; } .posters img { width: 100%; height: auto; border-radius: 14px; box-shadow: var(--shadow); }
+.btn.linkish { border-style: dashed; }
+body.contrast .hero, body.contrast .maptop.banner { background: #fff; }
+@media (max-width: 640px) { .hero { flex-direction: column; text-align: center; } .hero img { width: 60%; } }
+@media print { .hero, .posters { display: none; } }
