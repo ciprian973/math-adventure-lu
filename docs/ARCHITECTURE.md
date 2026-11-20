@@ -32,6 +32,7 @@ js/data/curriculum.js PE objectives and contents (French wording), NC levels 7â€
 js/data/map.js        adventure map (4 regions = 4 domains, 27 stages), badges, avatar items
 js/templates/*.js     97 exercise templates (registry.js = API + helpers; one file per domain)
 js/game/game.js       profiles, localStorage, XP, levels, stars, adaptivity, streaks, daily quest, badges, mastery per objective
+js/game/sets.js       exercise sets (fixed lists made by an adult, quick sets made by a pupil) and each pupil's saved work on them
 js/ui/media.js        synthesized sounds (WebAudio, mutable), speech synthesis, mascot SVG
 js/ui/widgets.js      interactive widgets: input, MC, multi-select, ordering, drag & drop bins, matching, fraction shading,
                       number line, grid points, grid cells, true/false + reason, find-the-mistake, bar/line chart builder

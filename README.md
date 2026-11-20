@@ -21,6 +21,8 @@ For every one of the 97 templates and each of its 4 levels the self-test generat
 
 The 🎓 button opens a PIN-protected dashboard (you choose the PIN the first time): overview per pupil, mastery per Plan d'études objective in the official wording, frequent errors (the misconception messages the app showed most often), topics assigned to a pupil (marked with a flag on the map and fed into the daily quest), CSV export (semicolon-separated, opens in Excel) and a PDF report (through the browser's print dialog → "Save as PDF"), the curriculum coverage table and settings (multiplication sign × or the · used in MENJE documents, PIN change, delete all data).
 
+**Exercise sets.** In the dashboard tab *Exercise sets* an adult chooses one or more topics, a level (1–4, or rising from 1 to 4) and the number of exercises, and gives the set to one or more pupils. A set is a fixed list: every pupil gets exactly the same exercises, and the dashboard shows each pupil's result (right first time, corrected later, still wrong). Pupils find their sets under 📚 on the map, and can also make a quick set for one topic themselves. Inside a set, exercises are checked one by one as usual; the numbered buttons show which are right (green) or wrong (red), the pupil can go back to any exercise, and a wrong one can be done again. Work on a set is saved, so it can be continued later. In ordinary practice the pupil can also go back to the previous exercises of the session.
+
 The PIN only keeps children out on a shared device; it is not encryption.
 
 ## Editing translations

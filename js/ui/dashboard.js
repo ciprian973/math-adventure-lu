@@ -44,11 +44,11 @@
       ps.forEach(p => { const b = h('button', { type: 'button', role: 'tab', class: 'btn' + (p.id === selected ? ' primary' : ''), 'aria-selected': p.id === selected }, esc(p.name)); b.onclick = () => { selected = p.id; App().go('teacher'); }; sel.appendChild(b); });
       main.appendChild(sel);
       const tabs = h('div', { class: 'tabs', role: 'tablist' });
-      [['overview', 'dash.overview'], ['mastery', 'dash.mastery'], ['errors', 'dash.errors'], ['assign', 'dash.assign'], ['export', 'dash.export'], ['coverage', 'dash.coverage'], ['settings', 'ui.settings']].forEach(([id, k]) => { const b = h('button', { type: 'button', role: 'tab', class: 'tab' + (tab === id ? ' sel' : ''), 'aria-selected': tab === id }, t(k)); b.onclick = () => { tab = id; App().go('teacher'); }; tabs.appendChild(b); });
+      [['overview', 'dash.overview'], ['mastery', 'dash.mastery'], ['errors', 'dash.errors'], ['assign', 'dash.assign'], ['sets', 'dash.sets'], ['export', 'dash.export'], ['coverage', 'dash.coverage'], ['settings', 'ui.settings']].forEach(([id, k]) => { const b = h('button', { type: 'button', role: 'tab', class: 'tab' + (tab === id ? ' sel' : ''), 'aria-selected': tab === id }, t(k)); b.onclick = () => { tab = id; App().go('teacher'); }; tabs.appendChild(b); });
       main.appendChild(tabs);
       const p = ps.find(x => x.id === selected);
       const box = h('div', { class: 'dashbody' }); main.appendChild(box);
-      ({ overview: D.renderOverview, mastery: D.renderMastery, errors: D.renderErrors, assign: D.renderAssign, export: D.renderExport, coverage: D.renderCoverage, settings: D.renderSettings })[tab](box, p);
+      ({ overview: D.renderOverview, mastery: D.renderMastery, errors: D.renderErrors, assign: D.renderAssign, sets: D.renderSets, export: D.renderExport, coverage: D.renderCoverage, settings: D.renderSettings })[tab](box, p);
     },
 
     renderOverview(box, p) {
@@ -95,6 +95,45 @@
         const sec = h('fieldset', { class: 'card' }); sec.appendChild(h('legend', {}, t('region.' + r.id) + ' — ' + t('domain.' + r.domain)));
         r.stages.forEach(sid => { const l = h('label', { class: 'row' }, `<input type="checkbox" ${p.assigned.includes(sid) ? 'checked' : ''}> ${t('stage.' + sid)}`); l.querySelector('input').onchange = e => { if (e.target.checked) p.assigned.push(sid); else p.assigned = p.assigned.filter(x => x !== sid); p.quest = null; G.save(); }; sec.appendChild(l); });
         box.appendChild(sec);
+      });
+    },
+
+    /* ---- exercise sets: create, assign, see results ---- */
+    renderSets(box) {
+      const ps = G.profiles();
+      box.appendChild(h('p', {}, t('dash.setsNote')));
+      const f = h('form', { class: 'card form' });
+      f.innerHTML = `<h3>➕ ${t('dash.setNew')}</h3>
+        <label>${t('dash.setName')} <input name="nm" type="text" maxlength="60" placeholder="${esc(t('dash.setNamePh'))}" required></label>
+        <fieldset class="stagepick"><legend>${t('dash.setStages')}</legend>${MQ.MAP.regions.map(r => `<div class="rgroup"><b>${esc(t('region.' + r.id))}</b>${r.stages.map(sid => `<label class="row"><input type="checkbox" name="st" value="${sid}"> ${esc(t('stage.' + sid))}</label>`).join('')}</div>`).join('')}</fieldset>
+        <div class="brow"><label>${t('dash.setLevel')} <select name="L"><option value="mix">${t('dash.setMixed')}</option>${[1, 2, 3, 4].map(L => `<option value="${L}">${L} · ${t('lvl.' + L)}</option>`).join('')}</select></label>
+        <label>${t('dash.setCount')} <select name="n">${[5, 8, 10, 12, 15, 20].map(n => `<option ${n === 10 ? 'selected' : ''}>${n}</option>`).join('')}</select></label></div>
+        <fieldset><legend>${t('dash.setAssign')}</legend>${ps.map(pp => `<label class="row"><input type="checkbox" name="pp" value="${pp.id}" checked> ${esc(pp.name)}</label>`).join('')}</fieldset>
+        <button class="btn primary">${t('dash.setCreate')}</button>`;
+      f.onsubmit = e => {
+        e.preventDefault(); const stages = [...f.querySelectorAll('input[name=st]:checked')].map(x => x.value);
+        if (!stages.length) { App().toast(t('dash.setNeedStage')); return; }
+        const set = MQ.sets.create(f.nm.value, stages, f.L.value === 'mix' ? 'mix' : +f.L.value, +f.n.value);
+        [...f.querySelectorAll('input[name=pp]:checked')].forEach(x => MQ.sets.toggleAssign(set.id, x.value, true));
+        App().toast('✓ ' + t('dash.setCreated', { n: set.name })); App().go('teacher');
+      };
+      box.appendChild(f);
+      const sets = MQ.sets.all();
+      if (!sets.length) { box.appendChild(h('p', { class: 'small' }, t('dash.noSetsYet'))); return; }
+      sets.slice().reverse().forEach(set => {
+        const c = h('div', { class: 'card setcard' });
+        c.innerHTML = `<h3>📚 ${esc(set.name)} <small>· ${t('ui.setSize', { n: set.items.length })} · ${set.level === 'mix' ? t('dash.setMixed') : t('lvl.' + set.level)} · ${esc(set.created.split('-').reverse().join('.'))}</small></h3>`;
+        const det = h('details', {}, `<summary>${t('dash.setPreview')}</summary><ol class="small">${set.items.map(it => `<li>${esc(t('stage.' + it.stage))} — ${esc(t('t.' + it.tpl + '.title'))} (${t('dash.level')} ${it.level})</li>`).join('')}</ol>`);
+        c.appendChild(det);
+        const tbl = h('table', { class: 'dtable' });
+        tbl.innerHTML = `<tr><th>${t('dash.setPupil')}</th><th>${t('dash.setAssigned')}</th><th>${t('dash.setResult')}</th></tr>` + ps.map(pp => {
+          const run = (pp.setRuns || {})['s:' + set.id]; const sm = run ? MQ.sets.summary(run) : null;
+          return `<tr><td>${esc(pp.name)}</td><td><input type="checkbox" data-p="${pp.id}" ${set.assigned.includes(pp.id) ? 'checked' : ''} aria-label="${esc(t('dash.setAssigned') + ': ' + pp.name)}"></td><td>${!sm || !sm.done ? t('dash.setNotStarted') : t('ui.setScore', { a: sm.correct, b: sm.n }) + ` <span class="small">(${t('ui.setDetail', { f: sm.first, l: sm.later, w: sm.wrong })}${sm.complete ? '' : ' · ' + t('ui.setProgress', { d: sm.done, n: sm.n })})</span>`}</td></tr>`;
+        }).join('');
+        tbl.querySelectorAll('input[data-p]').forEach(cb => cb.onchange = () => MQ.sets.toggleAssign(set.id, cb.dataset.p, cb.checked));
+        c.appendChild(tbl);
+        const del = h('button', { class: 'btn danger', type: 'button' }, '🗑 ' + t('dash.setDelete')); del.onclick = () => App().modal(`<p>${t('dash.confirmDeleteSet', { n: esc(set.name) })}</p>`, [{ label: t('dash.delete'), cls: 'danger', fn: () => { MQ.sets.remove(set.id); App().go('teacher'); } }, { label: t('ui.cancel') }]);
+        c.appendChild(del); box.appendChild(c);
       });
     },
 

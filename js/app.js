@@ -125,8 +125,44 @@
       });
       main.appendChild(wrap);
       const nav = h('div', { class: 'navrow' });
-      [['🦁', 'ui.avatar', () => App.go('avatar')], ['🏅', 'ui.badges', () => App.go('badges')]].forEach(([i, k, fn]) => { const b = h('button', { class: 'btn', type: 'button' }, `${i} ${t(k)}`); b.onclick = fn; nav.appendChild(b); });
+      const nSets = MQ.sets.forPupil(p).filter(s => { const r = (p.setRuns || {})['s:' + s.id]; return !r || !MQ.sets.summary(r).complete; }).length;
+      [['📚', 'ui.sets', () => App.go('sets'), nSets], ['🦁', 'ui.avatar', () => App.go('avatar')], ['🏅', 'ui.badges', () => App.go('badges')]].forEach(([i, k, fn, badge]) => { const b = h('button', { class: 'btn', type: 'button' }, `${i} ${t(k)}${badge ? ` <span class="pill">${badge}</span>` : ''}`); b.onclick = fn; nav.appendChild(b); });
       main.appendChild(nav);
+    },
+
+    /* ---------------- exercise sets ---------------- */
+    sets(main) {
+      const p = G.active(); if (!p) return App.go('profiles');
+      const back = h('button', { class: 'btn back', type: 'button' }, '← ' + t('ui.map')); back.onclick = () => App.go('map'); main.appendChild(back);
+      main.appendChild(h('h1', {}, '📚 ' + t('ui.sets')));
+      const runBtns = (key, card) => {
+        const run = (p.setRuns || {})[key]; const sm = run ? MQ.sets.summary(run) : null;
+        const row = h('div', { class: 'brow' });
+        const go = h('button', { class: 'btn primary', type: 'button' }, !sm || !sm.done ? '▶ ' + t('ui.start') : sm.complete ? '🔍 ' + t('ui.review') : '▶ ' + t('ui.continue')); go.onclick = () => App.go('play', { mode: 'set', key });
+        row.appendChild(go);
+        if (sm && sm.done) { const re = h('button', { class: 'btn', type: 'button' }, '↺ ' + t('ui.restartSet')); re.onclick = () => App.modal(`<p>${t('ui.confirmRestart')}</p>`, [{ label: t('ui.restartSet'), cls: 'primary', fn: () => { MQ.sets.restart(p, key); App.go('play', { mode: 'set', key }); } }, { label: t('ui.cancel') }]); row.appendChild(re); }
+        if (key.startsWith('q:')) { const del = h('button', { class: 'btn', type: 'button', 'aria-label': t('dash.delete') }, '🗑'); del.onclick = () => { MQ.sets.deleteRun(p, key); App.go('sets'); }; row.appendChild(del); }
+        if (sm) card.appendChild(h('p', { class: 'small' }, t('ui.setProgress', { d: sm.done, n: sm.n }) + (sm.done ? ' · ' + t('ui.setScore', { a: sm.correct, b: sm.n }) : '')));
+        card.appendChild(row);
+      };
+      // sets from the teacher / parent
+      main.appendChild(h('h2', {}, '🎓 ' + t('ui.setsFromAdult')));
+      const mine = MQ.sets.forPupil(p);
+      if (!mine.length) main.appendChild(h('p', { class: 'small' }, t('ui.noSets')));
+      const list = h('div', { class: 'stagegrid' });
+      mine.forEach(s => { const c = h('div', { class: 'stage card' }); c.innerHTML = `<h3>${esc(s.name)}</h3><p class="sdesc">${[...new Set(s.items.map(x => x.stage))].map(x => t('stage.' + x)).join(' · ')}</p><p class="small">${t('ui.setSize', { n: s.items.length })} · ${s.level === 'mix' ? t('dash.setMixed') : t('lvl.' + s.level)}</p>`; runBtns('s:' + s.id, c); list.appendChild(c); });
+      main.appendChild(list);
+      // quick sets made by the pupil
+      main.appendChild(h('h2', {}, '⚡ ' + t('ui.quickSets')));
+      const f = h('form', { class: 'card form quickset' });
+      f.innerHTML = `<label>${t('ui.qsTopic')} <select name="st">${MQ.MAP.regions.map(r => `<optgroup label="${esc(t('region.' + r.id))}">${r.stages.map(sid => `<option value="${sid}">${esc(t('stage.' + sid))}</option>`).join('')}</optgroup>`).join('')}</select></label>
+        <label>${t('ui.qsCount')} <select name="n">${[5, 10, 15, 20].map(n => `<option ${n === 10 ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+        <label>${t('ui.qsLevel')} <select name="L"><option value="mine">${t('ui.qsMine')}</option><option value="mix">${t('dash.setMixed')}</option>${[1, 2, 3, 4].map(L => `<option value="${L}">${L} · ${t('lvl.' + L)}</option>`).join('')}</select></label>
+        <button class="btn primary">✨ ${t('ui.qsMake')}</button>`;
+      f.onsubmit = e => { e.preventDefault(); const key = MQ.sets.quick(p, f.st.value, +f.n.value, f.L.value); App.go('play', { mode: 'set', key }); };
+      main.appendChild(f);
+      const quick = Object.values(p.setRuns || {}).filter(r => r.key.startsWith('q:')).sort((a, b) => b.updated - a.updated);
+      if (quick.length) { const ql = h('div', { class: 'stagegrid' }); quick.forEach(r => { const c = h('div', { class: 'stage card' }); c.innerHTML = `<h3>${esc(t('stage.' + r.stage))}</h3><p class="small">${t('ui.setSize', { n: r.items.length })} · ${(d => MQ.fmtDate(d.getFullYear(), d.getMonth() + 1, d.getDate()))(new Date(r.started))}</p>`; runBtns(r.key, c); ql.appendChild(c); }); main.appendChild(ql); }
     },
     questModal(p) {
       const q = G.quest(p);
@@ -226,12 +262,19 @@
         this.recent = []; this.score = 0; this.count = 0;
         if (this.mode === 'boss') { this.region = MQ.MAP.regions.find(r => r.id === params.region); this.queue = MQ.RNG(Date.now() & 0xffffff).shuffle(this.region.stages.concat(this.region.stages).slice(0, 8)); this.bossTotal = this.queue.length; }
         if (this.mode === 'blitz') { this.deadline = null; this.blitzLevel = G.stage(this.p, params.stage).level; }
-        this.next(true);
+        this.items = []; this.pos = -1;
+        if (this.mode === 'set') {
+          this.run = MQ.sets.run(this.p, params.key);
+          this.items = this.run.items.map((it, i) => Object.assign({ ex: MQ.T.make(it.tpl, it.level, it.seed), stage: it.stage }, this.run.state[i] || {}));
+          const firstOpen = this.items.findIndex(it => !it.done), last = this.items[this.run.pos || 0];
+          this.load(last && !last.done ? (this.run.pos || 0) : (firstOpen >= 0 ? firstOpen : 0));
+          if (firstOpen < 0) this.setDone = true;
+        } else this.next(true);
       }
       this.render();
       if (this.mode === 'blitz' && !this.timer) this.startTimer();
     }
-    snapshot() { return { state: { recent: this.recent, score: this.score, count: this.count, queue: this.queue, bossTotal: this.bossTotal, region: this.region, ex: this.ex, stage: this.stage, tries: this.tries, hints: this.hints, t0: this.t0, done: this.done, lastRes: this.lastRes, deadline: this.deadline, blitzLevel: this.blitzLevel, finished: this.finished }, resp: this.widget ? this.widget.get() : null }; }
+    snapshot() { return { state: { recent: this.recent, score: this.score, count: this.count, queue: this.queue, bossTotal: this.bossTotal, region: this.region, ex: this.ex, stage: this.stage, tries: this.tries, hints: this.hints, t0: this.t0, done: this.done, lastRes: this.lastRes, deadline: this.deadline, blitzLevel: this.blitzLevel, finished: this.finished, items: this.items, pos: this.pos, run: this.run, redo: this.redo, setDone: this.setDone }, resp: this.widget && !this.done ? this.widget.get() : (this.items && this.items[this.pos] ? this.items[this.pos].resp : null) }; }
     stop() { if (this.timer) clearInterval(this.timer); this.timer = null; MQ.speech.stop(); }
     pickLevel(sid) {
       const st = G.stage(this.p, sid);
@@ -239,7 +282,26 @@
       if (this.mode === 'blitz') return this.blitzLevel;
       return st.level;
     }
-    next(first) {
+    /* ---- history: every exercise of the session (or of the set) is kept, so the pupil can go back ---- */
+    canNavigate() { return this.mode === 'practice' || this.mode === 'set'; }
+    saveCur() {
+      if (!this.canNavigate() || this.pos < 0) return; const it = this.items[this.pos];
+      Object.assign(it, { ex: this.ex, stage: this.stage, tries: this.tries, hints: this.hints, done: this.done, lastRes: this.lastRes ? { kind: this.lastRes.kind, fb: this.lastRes.fb || null, praise: this.lastRes.praise, xp: this.lastRes.ev ? this.lastRes.ev.xp : this.lastRes.xp } : null, redo: !!this.redo });
+      if (!this.done && this.widget) it.resp = this.widget.get();
+      if (this.mode === 'set') { this.run.state[this.pos] = { tries: it.tries, hints: it.hints, done: it.done, correct: !!it.correct, firstTry: !!it.firstTry, lastRes: it.lastRes, redo: it.redo, resp: it.resp || null }; this.run.pos = this.pos; this.run.updated = Date.now(); G.save(); }
+    }
+    load(i) {
+      const it = this.items[i]; this.pos = i; this.ex = it.ex; this.stage = it.stage || it.ex.stage;
+      this.tries = it.tries || 0; this.hints = it.hints || 0; this.done = !!it.done; this.lastRes = it.lastRes || null; this.redo = !!it.redo;
+      this.t0 = Date.now(); this.widget = null; this.restoring = { resp: it.resp || null };
+    }
+    go(i) { if (i < 0 || i >= this.items.length || i === this.pos) return; this.saveCur(); this.load(i); this.setDone = false; this.render(); window.scrollTo && window.scrollTo({ top: 0 }); }
+    prev() { this.go(this.pos - 1); }
+    redoCur() { this.done = false; this.tries = 0; this.hints = 0; this.lastRes = null; this.redo = true; this.t0 = Date.now(); this.widget = null; this.restoring = { resp: null }; const it = this.items[this.pos]; it.resp = null; it.correct = false; this.saveCur(); this.render(); }
+    next(first, fresh) {
+      if (this.canNavigate() && !first) this.saveCur();
+      if (this.mode === 'practice' && !fresh && this.pos < this.items.length - 1) { this.load(this.pos + 1); this.render(); return; }
+      this.redo = false;
       this.stage = this.mode === 'boss' ? this.queue[this.count] : this.params.stage;
       const tpls = MQ.T.forStage(this.stage).map(x => x.id);
       const avail = tpls.filter(x => !this.recent.slice(-Math.min(2, tpls.length - 1)).includes(x));
@@ -247,6 +309,7 @@
       const id = r.pick(avail.length ? avail : tpls); this.recent.push(id);
       this.ex = MQ.T.make(id, this.pickLevel(this.stage), r.int(1, 2 ** 30));
       this.tries = 0; this.hints = 0; this.t0 = Date.now(); this.done = false; this.lastRes = null;
+      if (this.mode === 'practice') { this.items.push({ ex: this.ex, stage: this.stage }); if (this.items.length > 30) this.items.shift(); this.pos = this.items.length - 1; this.widget = null; this.restoring = { resp: null }; }
       if (!first) this.render();
     }
     startTimer() {
@@ -258,12 +321,13 @@
       const keepResp = this.restoring ? this.restoring.resp : (this.widget ? this.widget.get() : null); this.restoring = null;
       // top bar
       const bar = h('div', { class: 'playbar' });
-      const back = h('button', { class: 'btn back', type: 'button' }, '← ' + t('ui.back')); back.onclick = () => App.go('region', { id: (this.region || regionOf(this.stage)).id }); bar.appendChild(back);
+      const back = h('button', { class: 'btn back', type: 'button' }, '← ' + t('ui.back')); back.onclick = () => { if (this.mode === 'set') { this.saveCur(); App.go('sets'); } else App.go('region', { id: (this.region || regionOf(this.stage)).id }); }; bar.appendChild(back);
+      if (this.mode === 'set') bar.appendChild(h('h2', {}, `📚 ${esc(this.run.name || t('stage.' + this.run.stage))} <small>· ${t('stage.' + this.stage)} · ${t('t.' + ex.tpl + '.title')}</small>`)); else
       bar.appendChild(h('h2', {}, this.mode === 'boss' ? `🐉 ${t('ui.boss')} · ${t('region.' + this.region.id)} <small>${this.count + 1}/${this.bossTotal}</small>` : t('stage.' + this.stage) + ` <small>· ${t('t.' + ex.tpl + '.title')}</small>`));
       if (this.mode === 'practice') {
         const st = G.stage(this.p, this.stage);
         const lv = h('div', { class: 'levels', role: 'radiogroup', 'aria-label': t('ui.chooseLevel') });
-        [1, 2, 3, 4].forEach(L => { const b = h('button', { type: 'button', class: 'lvlb' + (ex.level === L ? ' sel' : ''), role: 'radio', 'aria-checked': ex.level === L, title: t(LEVEL_KEYS[L] + '.d') }, `${L} · ${t(LEVEL_KEYS[L])}`); b.onclick = () => { st.level = L; st.auto = false; st.recent = []; G.save(); this.next(); }; lv.appendChild(b); });
+        [1, 2, 3, 4].forEach(L => { const b = h('button', { type: 'button', class: 'lvlb' + (ex.level === L ? ' sel' : ''), role: 'radio', 'aria-checked': ex.level === L, title: t(LEVEL_KEYS[L] + '.d') }, `${L} · ${t(LEVEL_KEYS[L])}`); b.onclick = () => { st.level = L; st.auto = false; st.recent = []; G.save(); this.next(false, true); }; lv.appendChild(b); });
         const auto = h('label', { class: 'auto' }, `<input type="checkbox" ${st.auto ? 'checked' : ''}> ${t('ui.autoLevel')}`); auto.querySelector('input').onchange = e => { st.auto = e.target.checked; G.save(); };
         lv.appendChild(auto); bar.appendChild(lv);
       }
@@ -271,6 +335,8 @@
       if (this.mode === 'blitz' || this.mode === 'boss') bar.appendChild(h('div', { class: 'score' }, t('ui.score', { n: this.score })));
       m.appendChild(bar);
       if (this.finished) return this.mode === 'boss' ? this.finishBoss(true) : this.finishBlitz(true);
+      if (this.canNavigate()) m.appendChild(this.navRow());
+      if (this.setDone) return this.finishSet(true);
       // exercise card
       const card = h('section', { class: 'excard', 'aria-live': 'polite' });
       const q = h('div', { class: 'prompt' });
@@ -281,6 +347,7 @@
       const fig = renderFigure(ex, lang); if (fig) card.appendChild(h('div', { class: 'figure' }, fig));
       this.widget = W.build(ex, lang, () => this.submit());
       if (keepResp) this.widget.set(keepResp);
+      if (this.done) { this.widget.lock(); if (this.lastRes && this.lastRes.kind === 'solution' && this.widget.reveal) this.widget.reveal(); }
       card.appendChild(h('div', { class: 'widget' })).appendChild(this.widget.el);
       // hints
       const hintBox = h('div', { class: 'hints' });
@@ -294,15 +361,19 @@
       this.btnCheck = h('button', { class: 'btn primary big', type: 'button' }, '✔ ' + t('ui.check')); this.btnCheck.onclick = () => this.submit();
       this.btnNext = h('button', { class: 'btn primary big', type: 'button' }, t('ui.next') + ' →'); this.btnNext.onclick = () => this.advance();
       this.btnShow = h('button', { class: 'btn', type: 'button' }, t('ui.showSolution')); this.btnShow.onclick = () => this.giveUp();
+      this.btnRedo = h('button', { class: 'btn', type: 'button' }, '↺ ' + t('ui.redo')); this.btnRedo.onclick = () => this.redoCur();
+      if (this.mode === 'set' && this.pos === this.items.length - 1) this.btnNext.textContent = t('ui.setFinish') + ' ✓';
       if (this.hints >= 3 || this.mode === 'blitz') this.btnHint.disabled = true;
-      btns.append(this.btnHint, this.btnShow, this.btnCheck, this.btnNext);
+      btns.append(this.btnHint, this.btnShow, this.btnRedo, this.btnCheck, this.btnNext);
       card.appendChild(btns); m.appendChild(card);
       this.fbEl = fb; this.updateButtons();
       if (this.lastRes) this.showFeedback(this.lastRes, true);
       if (!this.done && this.widget.focus) this.widget.focus();
     }
     updateButtons() {
-      this.btnCheck.hidden = this.done; this.btnNext.hidden = !this.done;
+      this.btnCheck.hidden = this.done; this.btnNext.hidden = !this.done && !(this.mode === 'set' || (this.mode === 'practice' && this.pos < this.items.length - 1));
+      if (this.btnRedo) this.btnRedo.hidden = !(this.canNavigate() && this.done && this.lastRes && this.lastRes.kind === 'solution');
+      if (this.navEl) this.navEl.querySelectorAll('[data-i]').forEach(b => { const it = this.items[+b.dataset.i]; const d = +b.dataset.i === this.pos ? { done: this.done, correct: this.done && this.lastRes && this.lastRes.kind === 'ok' } : it; b.className = 'navdot' + (+b.dataset.i === this.pos ? ' cur' : '') + (d.done ? (d.correct ? ' ok' : ' bad') : ''); });
       this.btnShow.hidden = this.done || this.tries === 0 || this.mode === 'blitz';
       this.btnHint.hidden = this.done;
     }
@@ -322,12 +393,13 @@
     }
     giveUp() { this.tries = Math.max(this.tries, 2); this.finish(false, { fb: null }); }
     finish(correct, res) {
+      if (this.canNavigate()) { const it = this.items[this.pos]; it.resp = this.widget.get(); it.correct = correct; it.firstTry = correct && this.tries === 1 && !this.redo; }
       this.done = true; const ms = Date.now() - this.t0;
-      const ev = G.record(this.p, this.ex, { stage: this.stage, correct, tries: this.tries, hints: this.hints, ms, fb: (this.lastRes && this.lastRes.fb) || res.fb, mode: this.mode === 'practice' ? 'practice' : this.mode });
+      const ev = G.record(this.p, this.ex, { stage: this.stage, correct, tries: this.tries + (this.redo ? 1 : 0), hints: this.hints, ms, fb: (this.lastRes && this.lastRes.fb) || res.fb, mode: this.mode });
       if (correct) { this.score++; MQ.audio.play('ok'); if (this.tries === 1) App.confetti(); }
       this.lastRes = { kind: correct ? 'ok' : 'solution', fb: res.fb, ev, praise: 'praise.' + (1 + Math.floor(Math.random() * 8)) };
       this.widget.lock(); this.widget.reveal && !correct && this.widget.reveal();
-      this.showFeedback(this.lastRes); this.updateButtons(); App.header();
+      this.showFeedback(this.lastRes); this.saveCur(); this.updateButtons(); App.header();
       if (ev.levelUp) { MQ.audio.play('level'); App.toast(`⭐ ${t('ui.levelUp', { n: G.levelOf(this.p.xp) })}`); }
       ev.newBadges.forEach(b => { MQ.audio.play('badge'); App.toast(`🏅 ${t('ui.newBadge', { b: { k: 'badge.' + b } })}`); });
       if (ev.questDone) App.toast('📜 ' + t('ui.questDone'));
@@ -345,16 +417,42 @@
       const ex = this.ex; const fb = this.fbEl; fb.className = 'feedback ' + r.kind; let html = '';
       if (r.kind === 'formal') html = `<p>${tm(r.fb)}</p>`;
       if (r.kind === 'retry') html = `${MQ.mascot(this.p.avatar, 56, 'think')}<div><p><b>${t('ui.notYet')}</b> ${r.fb ? tm(r.fb) : t('ui.tryAgain')}</p><p class="small">${t('ui.retryHint')}</p></div>`;
-      if (r.kind === 'ok') html = `${MQ.mascot(this.p.avatar, 56)}<div><p><b>${t(r.praise)}</b> <span class="xpgain">+${r.ev ? r.ev.xp : 0} XP</span></p><p class="explain"><b>${t('ui.why')}</b> ${tm(ex.explain)}</p></div>`;
+      if (r.kind === 'ok') html = `${MQ.mascot(this.p.avatar, 56)}<div><p><b>${t(r.praise)}</b> <span class="xpgain">+${r.ev ? r.ev.xp : (r.xp || 0)} XP</span></p><p class="explain"><b>${t('ui.why')}</b> ${tm(ex.explain)}</p></div>`;
       if (r.kind === 'solution') html = `${MQ.mascot(this.p.avatar, 56, 'think')}<div><p><b>${t('ui.letsSee')}</b> ${r.fb ? tm(r.fb) : ''}</p><p><b>${t('ui.answerIs')}</b> ${tm(ex.answer)}</p><p class="explain"><b>${t('ui.why')}</b> ${tm(ex.explain)}</p><p class="small">${t('ui.noProblem')}</p></div>`;
       fb.innerHTML = html;
     }
     advance() {
+      if (this.mode === 'set') {
+        this.saveCur();
+        if (this.pos < this.items.length - 1) return this.go(this.pos + 1);
+        this.setDone = true; return this.render();
+      }
       this.count++;
       if (this.mode === 'boss' && this.count >= this.bossTotal) return this.finishBoss();
       if (this.mode === 'blitz' && Date.now() >= this.deadline) return this.finishBlitz();
       this.next();
     }
+    navRow() {
+      const nav = h('div', { class: 'exnav' }); this.navEl = nav;
+      const prev = h('button', { class: 'btn', type: 'button', 'aria-label': t('ui.prev') }, '← ' + t('ui.prev')); prev.disabled = this.pos <= 0 && !this.setDone; prev.onclick = () => { if (this.setDone) { this.setDone = false; this.render(); } else this.prev(); };
+      nav.appendChild(prev);
+      if (this.mode === 'set') {
+        const dots = h('div', { class: 'navdots', role: 'group', 'aria-label': t('ui.exList') });
+        this.items.forEach((it, i) => { const b = h('button', { type: 'button', 'data-i': i, class: 'navdot', 'aria-label': t('ui.exN', { n: i + 1 }) }, String(i + 1)); b.onclick = () => { this.setDone = false; this.go(i); if (i === this.pos) this.render(); }; dots.appendChild(b); });
+        nav.appendChild(dots);
+      } else nav.appendChild(h('span', { class: 'navinfo' }, t('ui.exN', { n: this.pos + 1 }) + (this.pos < this.items.length - 1 ? ' · ' + t('ui.reviewing') : '')));
+      return nav;
+    }
+    finishSet() {
+      this.main.querySelector('.excard') && this.main.querySelector('.excard').remove();
+      const sm = MQ.sets.summary(this.run); if (sm.correct === sm.n) { MQ.audio.play('badge'); App.confetti(); }
+      const c = h('section', { class: 'excard result' }, `${MQ.mascot(this.p.avatar, 110)}<h2>${t(sm.complete ? 'ui.setDone' : 'ui.setNotDone')}</h2><p>${t('ui.setScore', { a: sm.correct, b: sm.n })}</p><p class="small">${t('ui.setDetail', { f: sm.first, l: sm.later, w: sm.wrong })}</p>${sm.wrong ? `<p>${t('ui.setRedoHint')}</p>` : ''}`);
+      const row = h('div', { class: 'brow' });
+      const back = h('button', { class: 'btn primary', type: 'button' }, '📚 ' + t('ui.sets')); back.onclick = () => App.go('sets');
+      const again = h('button', { class: 'btn', type: 'button' }, '↺ ' + t('ui.restartSet')); again.onclick = () => App.modal(`<p>${t('ui.confirmRestart')}</p>`, [{ label: t('ui.restartSet'), cls: 'primary', fn: () => { MQ.sets.restart(this.p, this.run.key); App.go('play', { mode: 'set', key: this.run.key }); } }, { label: t('ui.cancel') }]);
+      row.append(back, again); c.appendChild(row); this.main.appendChild(c); this.updateNavOnly();
+    }
+    updateNavOnly() { if (this.navEl) this.navEl.querySelectorAll('[data-i]').forEach(b => { const it = this.items[+b.dataset.i]; b.className = 'navdot' + (it.done ? (it.correct ? ' ok' : ' bad') : ''); }); }
     finishBoss(rerender) {
       this.finished = true; const sc = this.score, n = this.bossTotal; const st = sc >= n ? 3 : sc >= n - 2 ? 2 : sc >= n / 2 ? 1 : 0;
       if (!rerender) { this.p.boss[this.region.id] = Math.max(this.p.boss[this.region.id] || 0, st); G.checkBadges(this.p).forEach(b => App.toast(`🏅 ${t('ui.newBadge', { b: { k: 'badge.' + b } })}`)); G.save(); }
