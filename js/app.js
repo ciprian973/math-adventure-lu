@@ -21,7 +21,7 @@
       G.load(); const s = G.settings();
       if (!s.lang) { const nav = (navigator.language || 'fr').slice(0, 2).toLowerCase(); s.lang = MQ.LANGS.includes(nav) ? nav : 'fr'; }
       MQ.setLang(s.lang); MQ.setSigns(s.mulSign); App.applySettings();
-      App.header();
+      App.header(); App.watchWidth();
       if (G.active()) App.go('map'); else App.go('profiles');
       if (MQ.speech.available()) speechSynthesis.onvoiceschanged = () => {};
       document.addEventListener('keydown', e => { if (e.key === 'Escape') App.closeModal(); });
@@ -48,11 +48,12 @@
       const right = h('div', { class: 'tools' });
       if (p) {
         const L = G.levelOf(p.xp), [a, b] = G.levelRange(L);
-        const chip = h('button', { class: 'pchip', type: 'button', 'aria-label': t('ui.profileMenu') }, `<b>${esc(p.name)}</b><span class="lv">${t('ui.level', { n: L })}</span><span class="xpbar" aria-hidden="true"><i style="width:${Math.round(100 * (p.xp - a) / (b - a))}%"></i></span><span class="xp">${p.xp} XP</span>${p.streak.days ? `<span class="streak" title="${t('ui.streak')}">🔥 ${p.streak.days}</span>` : ''}`);
+        const chip = h('button', { class: 'pchip', type: 'button', 'aria-label': t('ui.profileMenu') }, `<b>${esc(p.name)}</b><span class="lv">${t('ui.level', { n: L })}</span><span class="lvs">${t('ui.levelShort', { n: L })}</span><span class="xpbar" aria-hidden="true"><i style="width:${Math.round(100 * (p.xp - a) / (b - a))}%"></i></span><span class="xp">${p.xp} XP</span>${p.streak.days ? `<span class="streak" title="${t('ui.streak')}">🔥 ${p.streak.days}</span>` : ''}`);
         chip.onclick = () => App.go('profiles'); right.appendChild(chip);
       }
       const sel = h('select', { class: 'langsel', 'aria-label': t('ui.language') });
-      MQ.LANGS.forEach(l => { const o = h('option', { value: l }, LANG_NAMES[l]); if (l === s.lang) o.selected = true; sel.appendChild(o); });
+      const narrow = App.narrow();
+      MQ.LANGS.forEach(l => { const o = h('option', { value: l }, narrow ? l.toUpperCase() : LANG_NAMES[l]); if (narrow) o.setAttribute('aria-label', LANG_NAMES[l]); if (l === s.lang) o.selected = true; sel.appendChild(o); });
       sel.onchange = () => App.setLang(sel.value); right.appendChild(sel);
       const mute = h('button', { class: 'icon', type: 'button', 'aria-pressed': !!s.mute, 'aria-label': t(s.mute ? 'ui.unmute' : 'ui.mute') }, s.mute ? '🔇' : '🔊');
       mute.onclick = () => { s.mute = !s.mute; G.save(); App.header(); }; right.appendChild(mute);
@@ -61,6 +62,9 @@
       hd.appendChild(right);
     },
 
+    /* phones: compact header (language codes instead of names) */
+    narrow() { try { return root.matchMedia('(max-width: 640px)').matches; } catch (e) { return false; } },
+    watchWidth() { try { const mq = root.matchMedia('(max-width: 640px)'); const f = () => App.header(); mq.addEventListener ? mq.addEventListener('change', f) : mq.addListener(f); } catch (e) { /* old browser: keep the layout */ } },
     go(screen, params = {}, keep = null) {
       if (player) { player.stop(); player = null; App._player = null; }
       current = { screen, params }; const main = $('#main'); main.innerHTML = ''; main.className = 'screen-' + screen;
@@ -337,12 +341,12 @@
       // top bar
       const bar = h('div', { class: 'playbar' });
       const back = h('button', { class: 'btn back', type: 'button' }, '← ' + t('ui.back')); back.onclick = () => { if (this.mode === 'set') { this.saveCur(); App.go('sets'); } else App.go('region', { id: (this.region || regionOf(this.stage)).id }); }; bar.appendChild(back);
-      if (this.mode === 'set') bar.appendChild(h('h2', {}, `📚 ${esc(this.run.name || t('stage.' + this.run.stage))} <small>· ${t('stage.' + this.stage)} · ${t('t.' + ex.tpl + '.title')}</small>`)); else
-      bar.appendChild(h('h2', {}, this.mode === 'boss' ? `🐉 ${t('ui.boss')} · ${t('region.' + this.region.id)} <small>${this.count + 1}/${this.bossTotal}</small>` : t('stage.' + this.stage) + ` <small>· ${t('t.' + ex.tpl + '.title')}</small>`));
+      if (this.mode === 'set') bar.appendChild(h('h2', {}, `📚 ${esc(this.run.name || t('stage.' + this.run.stage))} <small><span class="sep">· </span>${t('stage.' + this.stage)} · ${t('t.' + ex.tpl + '.title')}</small>`)); else
+      bar.appendChild(h('h2', {}, this.mode === 'boss' ? `🐉 ${t('ui.boss')} · ${t('region.' + this.region.id)} <small>${this.count + 1}/${this.bossTotal}</small>` : t('stage.' + this.stage) + ` <small><span class="sep">· </span>${t('t.' + ex.tpl + '.title')}</small>`));
       if (this.mode === 'practice') {
         const st = G.stage(this.p, this.stage);
         const lv = h('div', { class: 'levels', role: 'radiogroup', 'aria-label': t('ui.chooseLevel') });
-        [1, 2, 3, 4].forEach(L => { const b = h('button', { type: 'button', class: 'lvlb' + (ex.level === L ? ' sel' : ''), role: 'radio', 'aria-checked': ex.level === L, title: t(LEVEL_KEYS[L] + '.d') }, `${L} · ${t(LEVEL_KEYS[L])}`); b.onclick = () => { st.level = L; st.auto = false; st.recent = []; G.save(); this.next(false, true); }; lv.appendChild(b); });
+        [1, 2, 3, 4].forEach(L => { const b = h('button', { type: 'button', class: 'lvlb' + (ex.level === L ? ' sel' : ''), role: 'radio', 'aria-checked': ex.level === L, title: t(LEVEL_KEYS[L] + '.d') }, `${L}<span class="lvname"> · ${t(LEVEL_KEYS[L])}</span>`); b.setAttribute('aria-label', `${L} · ${t(LEVEL_KEYS[L])}`); b.onclick = () => { st.level = L; st.auto = false; st.recent = []; G.save(); this.next(false, true); }; lv.appendChild(b); });
         const auto = h('label', { class: 'auto' }, `<input type="checkbox" ${st.auto ? 'checked' : ''}> ${t('ui.autoLevel')}`); auto.querySelector('input').onchange = e => { st.auto = e.target.checked; G.save(); };
         lv.appendChild(auto); bar.appendChild(lv);
       }
