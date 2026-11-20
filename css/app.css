@@ -162,7 +162,7 @@ svg.fig { font-family: inherit; touch-action: manipulation; }
 .fig .axis { stroke: #c8102e; stroke-width: 3; } .fig .centre { fill: #c8102e; }
 .fig .ln { stroke: #1e293b; stroke-width: 2; fill: none; } .fig .ln.thick { stroke-width: 3; } .fig .ln.thin { stroke-width: 1.2; } .fig .ln.hair { stroke-width: .9; }
 .fig .ln.dash { stroke-dasharray: 6 4; stroke-width: 1.6; } .fig .ln.seg { stroke: #c8102e; stroke-width: 4; } .fig .ln.arc { stroke: #c8102e; stroke-width: 2.5; }
-.fig .ln.vec { stroke: #7b3fa0; stroke-width: 4; marker-end: none; } .fig .ln.user { stroke: #d97706; stroke-dasharray: 5 3; } .fig .ln.a { stroke: #c8102e; }
+.fig .ln.vec { stroke: #7b3fa0; stroke-width: 4; marker-end: none; } .fig .ln.user { stroke: #d97706; stroke-dasharray: 5 3; } .fig .ln.a { stroke: #e8590c; stroke-width: 5; }
 .fig .grid { stroke: #6c9bd2; stroke-width: 1.25; }
 .fig .tx { font-size: 15px; fill: #1e293b; } .fig .tx.sm { font-size: 13px; } .fig .tx.xs { font-size: 11px; } .fig .tx.b { font-weight: 700; } .fig .tx.lbl { font-size: 15px; font-weight: 700; fill: #0b4a6e; }
 .fig .tx.onslice { fill: #fff; font-size: 18px; }
@@ -286,3 +286,5 @@ body.contrast .hero, body.contrast .maptop.banner { background: #fff; }
 @media (max-width: 380px) { .pchip .streak { display: none; } .pchip b { max-width: 5em; } }
 .navdot.skipped { border-style: dashed; color: var(--muted); background: #f1f5f9; }
 .btn.skipbtn { border-color: var(--line); color: var(--muted); margin-right: auto; }
+.fig .tx.lbl-a { fill: #e8590c; font-size: 1.15em; font-weight: 700; }
+.fig.coord .tx.b, .coord .tx.b { font-size: 1.05em; }

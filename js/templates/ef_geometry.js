@@ -212,19 +212,44 @@
         const want = L === 1 ? 'par' : 'perp';
         const u = r.pick(dirs); const good = want === 'par' ? dirs.filter(v => cross(u, v) === 0) : dirs.filter(v => dot(u, v) === 0);
         if (!good.length) return this.gen(r, L);
-        const other = dirs.filter(v => cross(u, v) !== 0 && dot(u, v) !== 0);
-        const chosen = [r.pick(good)].concat(r.sample(other, 2));
-        const segs = []; const labels = ['b', 'c', 'd'];
-        const placeSeg = (v, k) => { const len = 4 / Math.max(Math.abs(v[0]), Math.abs(v[1])); const sx = v[0] * Math.floor(len), sy = v[1] * Math.floor(len); for (let g = 0; g < 200; g++) { const x = r.int(0, W), y = r.int(0, H); if (x + sx >= 0 && x + sx <= W && y + sy >= 0 && y + sy <= H) return [x, y, x + sx, y + sy]; } return [0, 0, v[0], v[1]]; };
+        // distractors must look clearly different: at least 20° away from a and from the perpendicular to a, and 15° from each other
+        const ang = v => (Math.atan2(v[1], v[0]) * 180 / Math.PI + 180) % 180, gap = (x, y) => { const d = Math.abs(x - y) % 180; return Math.min(d, 180 - d); };
+        const other = dirs.filter(v => cross(u, v) !== 0 && dot(u, v) !== 0 && gap(ang(u), ang(v)) >= 20 && gap(ang(u) + 90, ang(v)) >= 20);
+        if (other.length < 2) return this.gen(r, L);
+        const d1 = r.pick(other), rest = other.filter(v => gap(ang(v), ang(d1)) >= 15); if (!rest.length) return this.gen(r, L);
+        const chosen = [r.pick(good), d1, r.pick(rest)];
+        const labels = ['b', 'c', 'd'];
+        // segments far enough from each other (no crossing, no touching) so that each one is clearly a separate line
+        // exact distance between two segments (0 if they cross)
+        const ptSeg = (px, py, s) => { const dx = s[2] - s[0], dy = s[3] - s[1], l2 = dx * dx + dy * dy; let t = l2 ? ((px - s[0]) * dx + (py - s[1]) * dy) / l2 : 0; t = Math.max(0, Math.min(1, t)); return Math.hypot(px - s[0] - t * dx, py - s[1] - t * dy); };
+        const orient = (a, b, c) => Math.sign((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]));
+        const segDist = (s1, s2) => { const p1 = [s1[0], s1[1]], p2 = [s1[2], s1[3]], q1 = [s2[0], s2[1]], q2 = [s2[2], s2[3]];
+          if (orient(p1, p2, q1) * orient(p1, p2, q2) < 0 && orient(q1, q2, p1) * orient(q1, q2, p2) < 0) return 0;
+          return Math.min(ptSeg(s1[0], s1[1], s2), ptSeg(s1[2], s1[3], s2), ptSeg(s2[0], s2[1], s1), ptSeg(s2[2], s2[3], s1)); };
+        const placed = [];
+        const placeSeg = v => { const k = Math.max(1, Math.floor(4 / Math.max(Math.abs(v[0]), Math.abs(v[1])))); const sx = v[0] * k, sy = v[1] * k;
+          for (let g = 0; g < 400; g++) { const x = r.int(1, W - 1), y = r.int(1, H - 1); const sg = [x, y, x + sx, y + sy]; if (sg[2] < 1 || sg[2] > W - 1 || sg[3] < 1 || sg[3] > H - 1) continue; if (placed.every(o => segDist(o, sg) >= 1.4)) { placed.push(sg); return sg; } } return null; };
         const sa = placeSeg(u); const order = r.shuffle([0, 1, 2]);
         const sAll = order.map(i => placeSeg(chosen[i]));
-        const lbl = (s, t) => ({ x: (s[0] + s[2]) / 2, y: (s[1] + s[3]) / 2, label: t, cls: 'mid' });
-        const correctLabel = labels[order.indexOf(0)];
+        if (!sa || sAll.some(x => !x)) return this.gen(r, L);
+        { const g = sAll[order.indexOf(0)]; if (want === 'par' && cross([g[0] - sa[0], g[1] - sa[1]], u) === 0) return this.gen(r, L); }
+        // label at one end of each segment, just beyond it, away from the other segments
+        const texts = [];
+        const labelFor = (sg, t, cls) => { const d = [sg[2] - sg[0], sg[3] - sg[1]], n = Math.hypot(d[0], d[1]);
+          const cands = [[sg[2] + d[0] / n * 0.55, sg[3] + d[1] / n * 0.55], [sg[0] - d[0] / n * 0.55, sg[1] - d[1] / n * 0.55]].filter(p => p[0] >= 0.3 && p[0] <= W - 0.1 && p[1] >= 0.3 && p[1] <= H - 0.1);
+          const ok = cands.find(p => placed.every(o => o === sg || segDist(o, [p[0], p[1], p[0], p[1]]) >= 0.7) && texts.every(q => Math.hypot(q.x - p[0], q.y - p[1]) >= 0.8));
+          const p = ok || cands[0] || [(sg[0] + sg[2]) / 2 + 0.4, (sg[1] + sg[3]) / 2 + 0.4]; texts.push({ x: p[0], y: p[1], t, cls }); };
+        labelFor(sa, 'a', 'b lbl-a'); sAll.forEach((sg, i) => labelFor(sg, labels[i], 'b'));
+        const j = order.indexOf(0), correctLabel = labels[j];
+        const dirOf = sg => { let dx = sg[2] - sg[0], dy = sg[3] - sg[1]; const g = MQ.gcd(Math.abs(dx), Math.abs(dy)) || 1; dx /= g; dy /= g; if (dx < 0 || (dx === 0 && dy < 0)) { dx = -dx; dy = -dy; } return [dx, dy]; };
+        const dirMsg = d => d[1] === 0 ? m('t.lines.dir.h') : d[0] === 0 ? m('t.lines.dir.v') : m(d[1] > 0 ? 't.lines.dir.up' : 't.lines.dir.down', { x: d[0], y: Math.abs(d[1]) });
         return {
           prompt: m(want === 'par' ? 't.lines.q1' : 't.lines.q2'),
-          figure: F.coord(W, H, { segments: [[...sa, 'ln thick a']].concat(sAll.map(s => [...s, 'ln thick'])), points: [lbl(sa, 'a')].concat(sAll.map((s, i) => lbl(s, labels[i]))) }),
+          figure: F.coord(W, H, { segments: [[...sa, 'ln thick a']].concat(sAll.map(sg => [...sg, 'ln thick'])), texts }),
           widget: { type: 'mc', layout: 'row', options: labels.map(l => ({ label: { k: 'c.line', v: { l } }, correct: l === correctLabel })) },
-          answer: m('c.line', { l: correctLabel }), explain: m(want === 'par' ? 't.lines.ex1' : 't.lines.ex2')
+          answer: m('c.line', { l: correctLabel }),
+          explain: m(want === 'par' ? 't.lines.ex1b' : 't.lines.ex2b', { l: correctLabel, da: dirMsg(dirOf(sa)), dl: dirMsg(dirOf(sAll[j])) }),
+          selfCheck: () => { const A = dirOf(sa); return sAll.every((sg, i) => { const D = dirOf(sg), rel = want === 'par' ? cross(A, D) === 0 : dot(A, D) === 0; return i === j ? rel : !rel && cross(A, D) !== 0 && dot(A, D) !== 0; }) && placed.every((x, i) => placed.every((y, k) => i === k || segDist(x, y) >= 1.4)); }
         };
       }
       // L3: place D so that (CD) ⟂ (AB) ; L4: place D so that CD ∥ AB and CD = AB

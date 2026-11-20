@@ -94,7 +94,7 @@
   F.nlX = (i, ticks, width = 640) => 30 + (width - 60) * i / ticks;
 
   /* ---------------- Coordinate plane (first quadrant) ---------------- */
-  F.coord = (w, h, { points = [], segments = [], polygons = [], interactive = false, label = '', icons = [], cell = U, axisNames = ['x', 'y'] } = {}) => {
+  F.coord = (w, h, { points = [], segments = [], polygons = [], interactive = false, label = '', icons = [], cell = U, axisNames = ['x', 'y'], texts = [] } = {}) => {
     const ox = 34, oy = 14 + h * cell; let s = '';
     for (let x = 0; x <= w; x++) s += line(ox + x * cell, oy, ox + x * cell, oy - h * cell, 'grid') + text(ox + x * cell, oy + 20, x, 'tx sm');
     for (let y = 0; y <= h; y++) s += line(ox, oy - y * cell, ox + w * cell, oy - y * cell, 'grid') + text(ox - 12, oy - y * cell + 5, y, 'tx sm');
@@ -103,6 +103,7 @@
     polygons.forEach(pg => s += poly(pg.pts.map(p => [ox + p[0] * cell, oy - p[1] * cell]), pg.cls || 'shape'));
     segments.forEach(sg => s += line(ox + sg[0] * cell, oy - sg[1] * cell, ox + sg[2] * cell, oy - sg[3] * cell, sg[4] || 'ln thick'));
     icons.forEach(ic => s += `<g class="icon">${F.icon(ic.type, ox + ic.x * cell, oy - ic.y * cell)}${ic.label ? text(ox + ic.x * cell, oy - ic.y * cell - 16, ic.label, 'tx sm b') : ''}</g>`);
+    texts.forEach(tx => s += `<text class="tx ${tx.cls || 'b'}" x="${r2(ox + tx.x * cell)}" y="${r2(oy - tx.y * cell + 7)}" text-anchor="middle">${tx.t}</text>`);
     points.forEach(p => s += `<circle class="pt ${p.cls || ''}" cx="${ox + p.x * cell}" cy="${oy - p.y * cell}" r="6"/>` + (p.label ? text(ox + p.x * cell + 12, oy - p.y * cell - 8, p.label, 'tx b', 'start') : ''));
     if (interactive) {
       for (let x = 0; x <= w; x++) for (let y = 0; y <= h; y++)
