@@ -30,7 +30,7 @@ js/figures/figures.js SVG drawing: number lines, fraction bars/pies, grids, coor
                       cube buildings and views, clocks, scales, jugs, charts, tangram, bar models, money
 js/data/curriculum.js PE objectives and contents (French wording), NC levels 7–10, MathemaTIC items with their PE links
 js/data/map.js        adventure map (4 regions = 4 domains, 27 stages), badges, avatar items
-js/templates/*.js     96 exercise templates (registry.js = API + helpers; one file per domain)
+js/templates/*.js     97 exercise templates (registry.js = API + helpers; one file per domain)
 js/game/game.js       profiles, localStorage, XP, levels, stars, adaptivity, streaks, daily quest, badges, mastery per objective
 js/ui/media.js        synthesized sounds (WebAudio, mutable), speech synthesis, mascot SVG
 js/ui/widgets.js      interactive widgets: input, MC, multi-select, ordering, drag & drop bins, matching, fraction shading,
@@ -51,4 +51,4 @@ XP per correct answer: 5 + 5 × level (halved on the second try, reduced by hint
 
 ## 5. Templates
 
-The full list (96 templates, stage, exercise types and objectives) is generated in `COVERAGE.md`.
+The full list (97 templates, stage, exercise types and objectives) is generated in `COVERAGE.md`.

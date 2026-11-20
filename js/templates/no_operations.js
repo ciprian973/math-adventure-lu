@@ -697,4 +697,81 @@
       };
     }
   });
+
+  /* ---------------- paren_place: where do the brackets go? + nested brackets ---------------- */
+  // All placements of ONE pair of brackets around 2 or more neighbouring numbers (plus "no brackets").
+  const placements = (nums, ops) => {
+    const plain = []; nums.forEach((x, i) => { plain.push(x); if (i < ops.length) plain.push(ops[i]); });
+    const out = [{ tk: plain, none: true }];
+    for (let i = 0; i < nums.length; i++) for (let j = i + 1; j < nums.length; j++) {
+      if (i === 0 && j === nums.length - 1) continue; // brackets around everything change nothing
+      const tk = []; nums.forEach((x, k) => { if (k === i) tk.push('('); tk.push(x); if (k === j) tk.push(')'); if (k < ops.length) tk.push(ops[k]); });
+      out.push({ tk });
+    }
+    return out.map(p => { try { const v = MQ.evalExpr(p.tk); return v.n >= 0 && v.isInt() ? Object.assign(p, { v }) : null; } catch (e) { return null; } }).filter(Boolean);
+  };
+  // innermost-first reduction, for the worked solution of nested brackets
+  const reduceSteps = tk => {
+    const steps = [tk.slice()]; let cur = tk.slice();
+    while (cur.includes('(')) {
+      let open = -1, close = -1; for (let i = 0; i < cur.length; i++) { if (cur[i] === '(') open = i; if (cur[i] === ')') { close = i; break; } }
+      const val = MQ.evalExpr(cur.slice(open + 1, close)); cur = cur.slice(0, open).concat([val], cur.slice(close + 1)); steps.push(cur.slice());
+    }
+    if (cur.length > 1) steps.push([MQ.evalExpr(cur)]);
+    return steps;
+  };
+  T.add({
+    id: 'paren_place', stage: 'no_check', objectives: ['NO.2.6', 'GC.2'], mt: ['MT.71', 'MT.72'],
+    gen(r, L) {
+      const expr = tk => ({ k: 'c.expr', v: { e: { expr: tk } } });
+      if (L === 4) {
+        // nested brackets: calculate
+        const forms = [
+          () => { const c = r.int(2, 9), d = r.int(2, 9), b = c + d + r.int(2, 30); return [r.int(2, 9), '*', '(', b, '-', '(', c, '+', d, ')', ')']; },
+          () => { const d = r.int(2, 9), c = d + r.int(2, 9), b = c - d + r.int(5, 40); return [b + r.int(10, 60), '-', '(', b, '-', '(', c, '-', d, ')', ')']; },
+          () => { const e = r.int(2, 6), d = e + r.int(1, 6); return ['(', r.int(2, 20), '+', r.int(2, 20), ')', '*', '(', r.int(2, 9), '+', '(', d, '-', e, ')', ')']; }
+        ];
+        let tk, val; do { tk = r.pick(forms)(); try { val = MQ.evalExpr(tk); } catch (e) { val = null; } } while (!val || val.n < 0 || !val.isInt());
+        let flat = null; try { flat = MQ.evalExpr(tk.filter(t => t !== '(' && t !== ')')); } catch (e) { flat = null; }
+        const steps = reduceSteps(tk);
+        return {
+          prompt: m('c.calc', { e: { expr: tk } }), hintVars: {},
+          widget: { type: 'input', fields: [field('a', val)] },
+          diagnose: v => v.a && flat && !flat.eq(val) && v.a.eq(flat) ? m('t.paren_place.m.ignored') : null,
+          answer: m('c.num', { x: val }),
+          explain: m('t.paren_place.ex4', { s: { html: lang => steps.map(s => MQ.exprToString(s, lang)).join(' = ') } }),
+          wrong: flat && !flat.eq(val) && flat.n >= 0 && flat.isInt() ? [{ fields: { a: String(flat.n) } }] : []
+        };
+      }
+      const n = L === 1 ? 3 : 4;
+      const opsPool = L === 1 ? [['+', '*'], ['-', '*'], ['*', '+']] : null;
+      let nums, ops, pl, tries = 0;
+      do {
+        ops = L === 1 ? r.pick(opsPool) : Array.from({ length: 3 }, (_, i) => i === 0 ? r.pick(['*', '+', '-']) : r.pick(L === 3 ? ['+', '-', '*', '/'] : ['+', '-', '*']));
+        if (!ops.some(o => o === '*' || o === '/')) ops[r.int(0, ops.length - 1)] = '*';
+        nums = Array.from({ length: n }, () => r.int(2, L === 1 ? 12 : 9));
+        if (ops[0] === '-') nums[0] += 20;
+        pl = placements(nums, ops);
+        // keep one placement per value
+        const seen = new Set(); pl = pl.filter(p => { const k = p.v.toString(); if (seen.has(k)) return false; seen.add(k); return true; });
+      } while ((pl.length < 2 || (L >= 2 && pl.length < 3) || !pl.some(p => !p.none)) && ++tries < 200);
+      const plain = pl.find(p => p.none) || { v: MQ.evalExpr(placements(nums, ops)[0].tk) };
+      let target;
+      if (L === 3) target = pl.reduce((a, b) => (b.v.gt(a.v) ? b : a));
+      else target = r.pick(pl.filter(p => !p.none));
+      const opts = [target].concat(r.shuffle(pl.filter(p => p !== target)).slice(0, 3));
+      const bare = []; nums.forEach((x, i) => { bare.push(x); if (i < ops.length) bare.push(ops[i]); });
+      const options = r.shuffle(opts.map(p => ({ label: expr(p.tk), correct: p === target, none: !!p.none,
+        why: p === target ? null : p.none ? m('t.paren_place.m.none', { y: p.v }) : m(L === 3 ? 't.paren_place.m.smaller' : 't.paren_place.m.other', { y: p.v, x: target.v }) })));
+      return {
+        prompt: m(L === 3 ? 't.paren_place.q3' : 't.paren_place.q', { e: { expr: bare }, x: target.v }), hintVars: {},
+        widget: { type: 'mc', options },
+        answer: expr(target.tk),
+        explain: L === 3
+          ? m('t.paren_place.ex3', { l: { html: lang => opts.slice().sort((a, b) => b.v.cmp(a.v)).map(p => MQ.exprToString(p.tk, lang) + ' = ' + MQ.fmtNum(p.v, lang)).join('; ') }, x: target.v })
+          : m('t.paren_place.ex', { e: { expr: target.tk }, x: target.v, f: { expr: bare }, y: plain.v }),
+        wrong: options.some(o => o.none && !o.correct) ? [{ choice: options.findIndex(o => o.none && !o.correct) }] : []
+      };
+    }
+  });
 })(typeof window !== 'undefined' ? window : globalThis);
