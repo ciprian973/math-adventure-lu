@@ -156,23 +156,23 @@ main { max-width: 1100px; margin: 0 auto; padding: 1rem; outline: none; }
 svg.fig { font-family: inherit; touch-action: manipulation; }
 .fig .cell { fill: #fff; stroke: #334155; stroke-width: 2; } .fig .cell.on { fill: var(--shade); } .fig .cell.dot { stroke-width: 2.5; }
 .fig .cell.hit { cursor: pointer; } .fig .cell.hit:hover { fill: #fde7b0; } .fig .cell.on.hit:hover { fill: #d97706; }
-.fig .cell.sq { stroke: #94a3b8; stroke-width: 1; } .fig .cell.sq.on { fill: var(--shade2); } .fig .cell.sq.fixed { fill: #0b6e99; } .fig .cell.sq.fixed.on { fill: #0b6e99; }
+.fig .cell.sq { stroke: #5b8cc8; stroke-width: 1.25; } .fig .cell.sq.on { fill: var(--shade2); } .fig .cell.sq.fixed { fill: #0b6e99; } .fig .cell.sq.fixed.on { fill: #0b6e99; }
 .cells .cell.sq.on:not(.fixed) { fill: var(--shade); }
 .fig .cell.cursor, .fig .lattice.cursor { stroke: #ff8c00; stroke-width: 4; }
 .fig .axis { stroke: #c8102e; stroke-width: 3; } .fig .centre { fill: #c8102e; }
 .fig .ln { stroke: #1e293b; stroke-width: 2; fill: none; } .fig .ln.thick { stroke-width: 3; } .fig .ln.thin { stroke-width: 1.2; } .fig .ln.hair { stroke-width: .9; }
 .fig .ln.dash { stroke-dasharray: 6 4; stroke-width: 1.6; } .fig .ln.seg { stroke: #c8102e; stroke-width: 4; } .fig .ln.arc { stroke: #c8102e; stroke-width: 2.5; }
 .fig .ln.vec { stroke: #7b3fa0; stroke-width: 4; marker-end: none; } .fig .ln.user { stroke: #d97706; stroke-dasharray: 5 3; } .fig .ln.a { stroke: #c8102e; }
-.fig .grid { stroke: #cbd5e1; stroke-width: 1; }
+.fig .grid { stroke: #6c9bd2; stroke-width: 1.25; }
 .fig .tx { font-size: 15px; fill: #1e293b; } .fig .tx.sm { font-size: 13px; } .fig .tx.xs { font-size: 11px; } .fig .tx.b { font-weight: 700; } .fig .tx.lbl { font-size: 15px; font-weight: 700; fill: #0b4a6e; }
 .fig .tx.onslice { fill: #fff; font-size: 18px; }
-.fig .shape { fill: #cfe8f7; stroke: #0b4a6e; stroke-width: 2.5; }
+.fig .shape { fill: #a9d5f0; stroke: #0b4a6e; stroke-width: 2.5; }
 .fig .pt { fill: #1e293b; } .fig .pt.user { fill: #d97706; } .fig .pt.mid { fill: none; } .fig .pt.centre { fill: #c8102e; }
 .fig .marker polygon { fill: #c8102e; } .fig .marker.user polygon { fill: #d97706; }
 .fig .arrow { fill: #1e293b; } .fig .tick:hover { fill: rgba(11,110,153,.12); cursor: pointer; } .fig .lattice { cursor: pointer; } .fig .lattice:hover { fill: rgba(217,119,6,.25); }
 .fig .prot { fill: rgba(0,163,224,.12); stroke: #0b6e99; stroke-width: 1.5; }
 .fig .ruler { fill: #fef3c7; stroke: #b7791f; stroke-width: 1.5; }
-.fig .face1 { fill: #cfe8f7; stroke: #0b4a6e; stroke-width: 2; } .fig .face2 { fill: #e8f4fb; stroke: #0b4a6e; stroke-width: 2; } .fig .face3 { fill: #9cc9e4; stroke: #0b4a6e; stroke-width: 2; }
+.fig .face1 { fill: #a9d5f0; stroke: #0b4a6e; stroke-width: 2; } .fig .face2 { fill: #d2eaf8; stroke: #0b4a6e; stroke-width: 2; } .fig .face3 { fill: #6db3dc; stroke: #0b4a6e; stroke-width: 2; }
 .fig .cube { stroke-width: 1.5; } .fig .netface { fill: #fde7b0; stroke: #7c4a03; stroke-width: 2; }
 .fig .dial { fill: #fff; stroke: #1e293b; stroke-width: 3; } .fig .hand { stroke: #1e293b; stroke-linecap: round; } .fig .hand.hh { stroke-width: 6; } .fig .hand.mh { stroke-width: 3.5; stroke: #c8102e; }
 .fig .water { fill: #8fd0f5; } .fig .glass { fill: none; stroke: #1e293b; stroke-width: 3; }
@@ -180,7 +180,7 @@ svg.fig { font-family: inherit; touch-action: manipulation; }
 .fig .slice { stroke: #fff; stroke-width: 2; } .fig .s0 { fill: #0b6e99; } .fig .s1 { fill: #c8102e; } .fig .s2 { fill: #1b7a3a; } .fig .s3 { fill: #7b3fa0; }
 .fig .tile { fill: #f8fafc; stroke: #94a3b8; } .fig .motif { fill: #c8102e; stroke: #7f1d1d; stroke-width: 1.5; }
 .fig .tan { fill: #e2e8f0; stroke: #1e293b; stroke-width: 2; } .fig .tan.on { fill: var(--shade); }
-.fig .bm { stroke: #1e293b; stroke-width: 2; } .fig .bm.b0 { fill: #cfe8f7; } .fig .bm.b1 { fill: #fde7b0; } .fig .bm.b2 { fill: #e5e7eb; }
+.fig .bm { stroke: #1e293b; stroke-width: 2; } .fig .bm.b0 { fill: #a9d5f0; } .fig .bm.b1 { fill: #fde7b0; } .fig .bm.b2 { fill: #e5e7eb; }
 .fig .note { fill: #d1fae5; stroke: #065f46; stroke-width: 2; } .fig .note.n2000 { fill: #bfdbfe; } .fig .note.n1000 { fill: #fecaca; } .fig .coin { fill: #fde68a; stroke: #92400e; stroke-width: 2; } .fig .coin.c5, .fig .coin.c2, .fig .coin.c10, .fig .coin.c20 { fill: #fbbf24; } .fig .coin.c1, .fig .coin.c2 { fill: #f59e0b; }
 .fig .gear { fill: #e2e8f0; stroke: #334155; stroke-width: 2; } .fig .tooth { fill: #334155; }
 .fig .ic1 { fill: #fca5a5; stroke: #7f1d1d; } .fig .ic2 { fill: #7f1d1d; } .fig .ic3 { fill: #f5d0a9; stroke: #7c4a03; } .fig .ic4 { fill: #fde047; stroke: #713f12; } .fig .ic5 { fill: #1e293b; } .fig .ic6 { fill: #86efac; stroke: #14532d; } .fig .ic7 { fill: #7dd3fc; stroke: #0c4a6e; } .fig .ic8 { fill: #fff; stroke: #14532d; }

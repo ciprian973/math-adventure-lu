@@ -529,7 +529,7 @@
       if (L <= 2) {
         const w = r.int(2, L === 1 ? 8 : 25), h = L === 2 && r.chance(0.3) ? w : r.intExcept(1, L === 1 ? 6 : 20, [w]);
         const P = 2 * (w + h), A = w * h; const ans = ask === 'P' ? P : A;
-        const fig = L === 1 ? F.onGrid([[0, 0], [w, 0], [w, h], [0, h]]) : lang => F.shape([[0, 0], [Math.min(w, 9), 0], [Math.min(w, 9), Math.min(h, 6)], [0, Math.min(h, 6)]].map(p => [p[0] * 1.2, p[1] * 1.2]), { scale: 28, rightAngles: [0, 1, 2, 3] }).replace('</svg>', `<text class="tx lbl" x="${20 + Math.min(w, 9) * 1.2 * 14}" y="16" text-anchor="middle">${MQ.fmtNum(w, lang)} cm</text><text class="tx lbl" x="4" y="${20 + Math.min(h, 6) * 1.2 * 14}" text-anchor="start">${MQ.fmtNum(h, lang)} cm</text></svg>`);
+        const fig = L === 1 ? F.onGrid([[0, 0], [w, 0], [w, h], [0, h]]) : lang => F.shape([[0, 0], [Math.min(w, 9), 0], [Math.min(w, 9), Math.min(h, 6)], [0, Math.min(h, 6)]].map(p => [p[0] * 1.2, p[1] * 1.2]), { scale: 28, rightAngles: [0, 1, 2, 3], padL: 64 }).replace('</svg>', `<text class="tx lbl" x="${64 + Math.min(w, 9) * 1.2 * 14}" y="16" text-anchor="middle">${MQ.fmtNum(w, lang)} cm</text><text class="tx lbl" x="58" text-anchor="end" y="${20 + Math.min(h, 6) * 1.2 * 14}" text-anchor="start">${MQ.fmtNum(h, lang)} cm</text></svg>`);
         return {
           prompt: m(L === 1 ? (ask === 'P' ? 't.perim_area.q1P' : 't.perim_area.q1A') : (ask === 'P' ? 't.perim_area.q2P' : 't.perim_area.q2A'), { w: cm(w), h: cm(h) }), figure: fig,
           widget: { type: 'input', fields: [field('a', new MQ.Q(ans), { unit: ask === 'P' ? 'cm' : 'cm2' })] },

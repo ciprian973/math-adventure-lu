@@ -205,10 +205,10 @@
   };
 
   /* ---------------- Triangles / quadrilaterals for classification ---- */
-  F.shape = (pts, { marks = [], rightAngles = [], label = '', scale = 30, ticks = [] } = {}) => {
+  F.shape = (pts, { marks = [], rightAngles = [], label = '', scale = 30, ticks = [], padL = 20 } = {}) => {
     const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
     const minX = Math.min(...xs), minY = Math.min(...ys), maxX = Math.max(...xs), maxY = Math.max(...ys);
-    const P = p => [20 + (p[0] - minX) * scale, 20 + (maxY - p[1]) * scale];
+    const P = p => [padL + (p[0] - minX) * scale, 20 + (maxY - p[1]) * scale];
     let s = poly(pts.map(P), 'shape');
     rightAngles.forEach(i => {
       const A = pts[i], B = pts[(i + 1) % pts.length], C = pts[(i - 1 + pts.length) % pts.length];
@@ -224,7 +224,7 @@
       const nx = -dy / L * 7, ny = dx / L * 7, tx = dx / L * 5, ty = dy / L * 5;
       for (let k = 0; k < n; k++) { const o = (k - (n - 1) / 2); s += line(mx + tx * o - nx, my + ty * o - ny, mx + tx * o + nx, my + ty * o + ny, 'ln'); }
     });
-    return svg((maxX - minX) * scale + 40, (maxY - minY) * scale + 40, s, label);
+    return svg((maxX - minX) * scale + padL + 20, (maxY - minY) * scale + 40, s, label);
   };
 
   /* ---------------- Solids (oblique drawing) ---------------- */
