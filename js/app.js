@@ -423,14 +423,14 @@
       ev.newBadges.forEach(b => { MQ.audio.play('badge'); App.toast(`🏅 ${t('ui.newBadge', { b: { k: 'badge.' + b } })}`); });
       if (ev.questDone) App.toast('📜 ' + t('ui.questDone'));
       if (this.mode === 'blitz') { setTimeout(() => { if (!this.finished && Date.now() < this.deadline) this.advance(); }, correct ? 500 : 1400); }
-      if (ev.suggestUp && this.mode === 'practice') setTimeout(() => App._player === this && App.modal(`${MQ.mascot(this.p.avatar, 90)}<h2>${t('ui.suggestUpTitle')}</h2><p>${t('ui.suggestUp', { l: { k: LEVEL_KEYS[this.ex.level + 1] } })}</p>`, [{ label: t('ui.yesHarder'), cls: 'primary', fn: () => { G.stage(this.p, this.stage).level = this.ex.level + 1; G.save(); } }, { label: t('ui.stayHere') }]), 700);
+      if (ev.suggestUp && this.mode === 'practice') setTimeout(() => App._player === this && App.modal(`${MQ.mascot(this.p.avatar, 90)}<h2>${t('ui.suggestUpTitle')}</h2><p>${t('ui.suggestUp', { l: { k: LEVEL_KEYS[this.ex.level + 1] } })}</p>`, [{ label: t('ui.yesHarder'), cls: 'primary', fn: () => { const st = G.stage(this.p, this.stage); st.level = Math.min(4, this.ex.level + 1); st.recent = []; G.save(); if (App._player === this) { App.toast('⬆️ ' + t('ui.levelNow', { l: { k: LEVEL_KEYS[st.level] } })); this.next(false, true); } } }, { label: t('ui.stayHere') }]), 700);
       if (ev.dropDown && this.mode === 'practice') setTimeout(() => App._player === this && this.workedExample(), 700);
     }
     workedExample() {
       const L = G.stage(this.p, this.stage).level;
       const ex = MQ.T.make(this.ex.tpl, L, (Date.now() & 0xfffff) + 3);
       const lang = MQ.i18n.lang; const fig = renderFigure(ex, lang);
-      App.modal(`<h2>🧭 ${t('ui.workedTitle')}</h2><p>${t('ui.workedIntro', { l: { k: LEVEL_KEYS[L] } })}</p><div class="worked"><div class="qtext">${tm(ex.prompt)}</div>${fig ? `<div class="figure">${fig}</div>` : ''}<p><b>${t('ui.answerIs')}</b> ${tm(ex.answer)}</p><p class="explain">${tm(ex.explain)}</p></div>`, [{ label: t('ui.understood'), cls: 'primary' }], { cls: 'wide' });
+      App.modal(`<h2>🧭 ${t('ui.workedTitle')}</h2><p>${t('ui.workedIntro', { l: { k: LEVEL_KEYS[L] } })}</p><div class="worked"><div class="qtext">${tm(ex.prompt)}</div>${fig ? `<div class="figure">${fig}</div>` : ''}<p><b>${t('ui.answerIs')}</b> ${tm(ex.answer)}</p><p class="explain">${tm(ex.explain)}</p></div>`, [{ label: t('ui.understood'), cls: 'primary', fn: () => { if (App._player === this && this.done) this.next(false, true); } }], { cls: 'wide' });
     }
     showFeedback(r, silent) {
       const ex = this.ex; const fb = this.fbEl; fb.className = 'feedback ' + r.kind; let html = '';
