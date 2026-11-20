@@ -123,7 +123,7 @@
         return { correct: vOk && rOk, partial: vOk && !rOk, fb: !vOk ? (w.wrongFb || null) : (!rOk ? { k: 'fb.reason' } : null) };
       }
       case 'mistake': {
-        if (resp.step !== w.wrongStep) return { correct: false, fb: { k: 'fb.mistakeStep' } };
+        if (resp.step !== w.wrongStep) return { correct: false, fb: (w.stepFb && w.stepFb[resp.step]) || { k: 'fb.mistakeStep' } };
         if (!w.fields || !w.fields.length) return { correct: true };
         const r = checkFields(w.fields, resp, lang, ex);
         return { correct: r.correct, partial: !r.correct, fb: r.correct ? null : (r.fb || { k: 'fb.mistakeFix' }) };

@@ -90,30 +90,31 @@
       const a = r.int(L <= 2 ? 23 : 123, L <= 2 ? 98 : 987), b = r.int(13, 89);
       const u = b % 10, t = b - u;
       if (u === 0) return this.gen(r, L);
-      const steps = [{ e: [a, '*', u], v: a * u }, { e: [a, '*', t], v: a * t }, { e: [a * u, '+', a * t], v: a * b }];
+      const p1 = a * u, p2 = a * t, y = a * b;
       const wrongStep = r.int(0, 2);
-      const errs = [
-        steps[0].v + 10 * r.pick([1, -1]),     // forgotten / extra carry
-        steps[1].v / 10,                        // forgot the zero (×10)
-        steps[2].v + 100 * r.pick([1, -1])
-      ];
-      let wv = errs[wrongStep]; if (wv <= 0) wv = steps[wrongStep].v + 10;
-      const shown = steps.map((s, i) => i === wrongStep ? wv : s.v);
-      // later steps use the shown (wrong) values to stay consistent
-      if (wrongStep < 2) shown[2] = shown[0] + shown[1];
+      // the carry from the units: (units digit of a) × u = 10·c + rest
+      const du = a % 10, pu = du * u, c = Math.floor(pu / 10);
+      if (wrongStep === 0 && c === 0) return this.gen(r, L);       // no carry to forget: pick another calculation
+      const err = wrongStep === 0 ? p1 - 10 * c                    // forgotten carry
+        : wrongStep === 1 ? p2 / 10                                // forgotten 0 (multiplying by tens)
+          : y + 100 * r.pick([1, -1]);                             // addition mistake
+      const shown = [p1, p2, y]; shown[wrongStep] = err;
+      if (wrongStep < 2) shown[2] = shown[0] + shown[1];           // the addition is done correctly with the numbers written
       const lines = [
         m('t.mistake_calc.step', { e: E(a, '*', u), x: shown[0] }),
         m('t.mistake_calc.step', { e: E(a, '*', t), x: shown[1] }),
         m('t.mistake_calc.step', { e: E(shown[0], '+', shown[1]), x: shown[2] })
       ];
-      // if the first two are correct the last line must be wrong (wrongStep 2), otherwise last line is a consistent sum
-      const fixVal = wrongStep === 2 ? steps[0].v + steps[1].v : steps[wrongStep].v;
+      const fixVal = [p1, p2, y][wrongStep];
+      const v = { a, u, t, x: fixVal, w: err, y, p: p1, s: p2, d: du, pu, r: pu % 10, c, e: E(a, '*', b) };
       return {
-        prompt: m('t.mistake_calc.q', { n: names(r, 1)[0], e: E(a, '*', b) }),
-        widget: { type: 'mistake', steps: lines, wrongStep, fields: [field('fix', new MQ.Q(fixVal), { label: m('t.mistake_calc.fix') })] },
-        answer: m('t.mistake_calc.ans', { i: wrongStep + 1, x: fixVal, y: a * b }),
-        explain: m('t.mistake_calc.ex' + wrongStep, { a, u, t, x: fixVal, y: a * b }),
-        wrong: [{ step: (wrongStep + 1) % 3, fields: { fix: '1' } }]
+        prompt: m('t.mistake_calc.q', { n: names(r, 1)[0], e: E(a, '*', b) }), hintVars: {},
+        widget: { type: 'mistake', steps: lines, wrongStep, fields: [field('fix', new MQ.Q(fixVal), { label: m('t.mistake_calc.fix') })],
+          stepFb: wrongStep < 2 ? { 2: m('t.mistake_calc.m.sumOk') } : {} },
+        answer: m('t.mistake_calc.ans', { i: wrongStep + 1, x: fixVal, y, e: E(a, '*', b) }),
+        explain: m('t.mistake_calc.ex' + wrongStep, v),
+        diagnose: vv => vv.fix && wrongStep < 2 && vv.fix.eq(y) ? m('t.mistake_calc.m.lineOnly') : null,
+        wrong: [{ step: (wrongStep + 1) % 3, fields: { fix: '1' } }].concat(wrongStep < 2 ? [{ step: 2, fields: { fix: String(y) } }] : [])
       };
     }
   });
