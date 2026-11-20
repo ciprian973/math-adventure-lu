@@ -61,7 +61,8 @@
       const raw = vars[name]; const n = raw instanceof MQ.Q ? raw.toNumber() : +raw;
       const cat = pluralCat(lang, n);
       const map = {}; forms.split('|').forEach(f => { const i = f.indexOf(':'); map[f.slice(0, i)] = f.slice(i + 1); });
-      const form = map[cat] != null ? map[cat] : (map.other != null ? map.other : Object.values(map)[0]);
+      // a value that is not a plain number (a fraction object, a unit…) takes the neutral plural form, without Romanian "de"
+      const form = !isFinite(n) ? (map.few != null ? map.few : map.other != null ? map.other : Object.values(map)[0]) : map[cat] != null ? map[cat] : (map.other != null ? map.other : Object.values(map)[0]);
       return form.replace(/#/g, fmtVal(raw, lang, plain));
     });
     return str.replace(/\{(\w+)\}/g, (all, name) => name in vars ? fmtVal(vars[name], lang, plain) : all);

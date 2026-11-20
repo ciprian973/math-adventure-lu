@@ -21,7 +21,7 @@
   'use strict';
   const MQ = root.MQ;
   const LANGS = ['ro', 'en', 'fr', 'de', 'lb'];
-  const BAD = /⟦|undefined|NaN|\[object Object\]|\{[a-zA-Z]\w*\}/;
+  const BAD = /⟦|undefined|NaN|\[object Object\]|\{[a-zA-Z]\w*\}|\[\[|\]\]/;
 
   function textsOf(ex, lang) {
     const out = []; const add = (what, m) => { if (m == null) return; out.push([what, typeof m === 'object' && !m.k && !Array.isArray(m) ? MQ.fmtVal(m, lang) : MQ.tm(m, lang)]); };
@@ -39,6 +39,19 @@
     return out;
   }
 
+  /* grammar of counts: "1 <plural>" is wrong everywhere; Romanian needs "de" from 20 on (20 de minute, 101 minute) */
+  const PLURALS = {"en": ["squares", "days", "minutes", "parts", "people", "cubes", "teeth", "stickers", "visitors", "vertices", "steps", "faces", "exercises", "children", "tenths", "rectangles", "pupils", "pages", "layers", "edges", "weeks", "teachers", "points", "litres", "jerseys", "eggs", "decimals", "croissants", "coins", "bars", "balls", "rides", "hours", "groups"], "fr": ["carreaux", "jours", "minutes", "parts", "cases", "personnes", "cubes", "tours", "autocollants", "visiteurs", "sommets", "exercices", "enfants", "dents", "élèves", "rectangles", "pages", "dixièmes", "couches", "carrés", "arêtes", "semaines", "poissons", "points", "maillots", "litres", "heures", "groupes", "barres", "ballons", "attractions", "pièces", "croissants", "faces", "étapes"], "de": ["Tage", "Tagen", "Minuten", "Teile", "Teilen", "Personen", "Kinder", "Zähne", "Schritte", "Flächen", "Ecken", "Aufgaben", "Seiten", "Schichten", "Rechtecke", "Quadrate", "Kanten", "Wochen", "Trikots", "Punkte", "Münzen", "Fische", "Fahrgeschäfte", "Eier", "Bälle", "Würfeln", "Stunden", "Gruppen"], "lb": ["Deeg", "Minutten", "Minutte", "Deeler", "Kanner", "Zänn", "Wierfelen", "Wierfele", "Persounen", "Persoune", "Flächen", "Ecken", "Aufgaben", "Säiten", "Schichten", "Rechtecker", "Quadrater", "Kanten", "Wochen", "Punkten", "Mënzen", "Eeër", "Bäll", "Visiteuren", "Visiteure", "Attraktiounen", "Trikoten", "Fielder", "Stonnen", "Gruppen"], "ro": ["pătrățele", "zecimale", "zile", "ore", "minute", "secunde", "cuburi", "fețe", "vârfuri", "muchii", "copii", "elevi", "părți", "exerciții", "cifre", "poziții", "săptămâni", "pagini", "pași", "persoane", "ture", "dinți", "litri", "abțibilduri", "bare", "grupe", "straturi", "dreptunghiuri", "unități", "pești", "chifle", "cornuri", "pasageri", "profesori", "atracții", "puncte", "șabloane", "zecimi", "ouă", "ori"]};
+  const RX = {};
+  const grammar = (lang, txt) => {
+    if (!/\d/.test(txt)) return [];
+    const out = []; const plain = MQ.stripHtml(txt);
+    const re = RX[lang] || (RX[lang] = new RegExp('(^|[^\\d,.])(\\d+) (' + PLURALS[lang].join('|') + ')(?![\\wăîșțâäöüëéèêàç])', 'g')); re.lastIndex = 0; let mm;
+    while ((mm = re.exec(plain))) { const n = +mm[2];
+      if (n === 1 || (lang === 'fr' && n === 0)) out.push('singular needed: "' + mm[2] + ' ' + mm[3] + '"');
+      if (lang === 'ro' && n > 0 && (n % 100 === 0 || n % 100 >= 20)) out.push('Romanian needs "de": "' + mm[2] + ' ' + mm[3] + '"'); }
+    if (lang === 'ro') { const re2 = RX.ro2 || (RX.ro2 = new RegExp('(^|[^\\d,.])(\\d+) de (' + PLURALS.ro.join('|') + ')(?![\\wăîșțâ])', 'g')); re2.lastIndex = 0; while ((mm = re2.exec(plain))) { const n = +mm[2]; if (n % 100 > 0 && n % 100 < 20) out.push('Romanian "de" not wanted: "' + mm[0].trim() + '"'); } }
+    return out;
+  };
   function checkExercise(ex, errs, tag) {
     const w = ex.widget; const e = m => errs.push(tag + ': ' + m);
     if (!ex.prompt) e('no prompt'); if (!ex.hints || ex.hints.length !== 3) e('needs 3 hints'); if (!ex.explain) e('no explanation'); if (!ex.answer) e('no answer text');
@@ -68,19 +81,21 @@
       });
       (ex.wrong || []).forEach(wr => { try { if (MQ.check(ex, wr, lang).correct) e(`${lang}: wrong answer accepted ${JSON.stringify(wr)}`); } catch (x) { e(lang + ' wrong check threw ' + x.message); } });
       // rendering
-      textsOf(ex, lang).forEach(([what, s]) => { if (typeof s !== 'string' || BAD.test(s)) e(`${lang} ${what} renders badly: ${String(s).slice(0, 160)}`); });
+      textsOf(ex, lang).forEach(([what, s]) => { if (typeof s !== 'string' || BAD.test(s)) e(`${lang} ${what} renders badly: ${String(s).slice(0, 160)}`); else if (what !== 'figure') grammar(lang, s).forEach(g => e(`${lang} ${what}: ${g}`)); });
       if (w.type === 'mc') { const labels = w.options.map(o => MQ.stripHtml(MQ.tm(o.label, lang)) + '|' + (o.fig || '')); if (new Set(labels).size !== labels.length) e(`${lang}: duplicate MC options ${labels.join(' / ').slice(0, 200)}`); }
     });
   }
 
-  function placeholders(s) { return [...new Set((String(s).replace(/\{(MUL|DIV)\}/g, '').match(/\{\w+\}|\[\[\w+\|/g) || []).map(x => x.replace(/\|$/, '')))].sort().join(','); }
+  // keys whose wording legitimately uses different variables in some languages (grammar: genitive forms etc.)
+  const PLACEHOLDER_VARIANTS = new Set(['t.dec_count.qDigit', 't.dec_count.ex4b', 't.dec_count.exCount', 't.dec_count.exDigit']);
+  function placeholders(s) { return [...new Set((String(s).replace(/\{(MUL|DIV)\}/g, '').replace(/\[\[(\w+)\|/g, '{$1}').match(/\{\w+\}/g) || []))].sort().join(','); }
 
   function run({ n = 1000, log = console.log } = {}) {
     const t0 = Date.now(); const report = { templates: 0, instances: 0, errors: [], perTemplate: {} };
     MQ.widgets_types = ['input', 'mc', 'multi', 'order', 'bins', 'match', 'shade', 'numberline', 'point', 'cells', 'tf', 'mistake', 'bars'];
     // ---- language files
     const D = root.I18N_DATA; const base = Object.keys(D.en);
-    LANGS.forEach(l => { const ks = Object.keys(D[l] || {}); base.forEach(k => { if (D[l][k] == null) report.errors.push(`lang ${l}: missing key ${k}`); else if (placeholders(D[l][k]) !== placeholders(D.en[k])) report.errors.push(`lang ${l}: placeholders differ in ${k}: ${placeholders(D[l][k])} vs ${placeholders(D.en[k])}`); }); ks.forEach(k => { if (D.en[k] == null) report.errors.push(`lang ${l}: extra key ${k}`); }); });
+    LANGS.forEach(l => { const ks = Object.keys(D[l] || {}); base.forEach(k => { if (D[l][k] == null) report.errors.push(`lang ${l}: missing key ${k}`); else if (!PLACEHOLDER_VARIANTS.has(k) && placeholders(D[l][k]) !== placeholders(D.en[k])) report.errors.push(`lang ${l}: placeholders differ in ${k}: ${placeholders(D[l][k])} vs ${placeholders(D.en[k])}`); }); ks.forEach(k => { if (D.en[k] == null) report.errors.push(`lang ${l}: extra key ${k}`); }); });
     // dynamic keys used by the UI
     const need = [];
     MQ.MAP.regions.forEach(r => { need.push('region.' + r.id, 'region.' + r.id + '.intro', 'domain.' + r.domain); r.stages.forEach(s => need.push('stage.' + s, 'stage.' + s + '.d')); });

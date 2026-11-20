@@ -197,10 +197,10 @@
         // conversion between notations: 4,6 = □ hundredths  OR  53 hundredths = □
         if (r.chance(0.5)) {
           const y = MQ.Q.dec(r.int(11, 99), 1), cnt = y.mul(100);
-          return { prompt: m('t.dec_count.q4a', { x: y, u: { k: unitKeys[2] } }), widget: { type: 'input', fields: [field('a', cnt)] }, diagnose: v => v.a && v.a.eq(y.mul(10)) ? m('t.dec_count.m.tenthsNotHundredths') : null, answer: m('c.num', { x: cnt }), explain: m('t.dec_count.ex4a', { x: y, c: cnt }), wrong: [{ fields: { a: y.mul(10).toString() } }] };
+          return { prompt: m('t.dec_count.q4a', { x: y, u: { k: unitKeys[2] } }), widget: { type: 'input', fields: [field('a', cnt)] }, diagnose: v => v.a && v.a.eq(y.mul(10)) ? m('t.dec_count.m.tenthsNotHundredths') : null, answer: m('c.num', { x: cnt }), explain: m('t.dec_count.ex4a', { x: y, c: cnt, cc: { k: 'cnt.2', v: { n: cnt } } }), wrong: [{ fields: { a: y.mul(10).toString() } }] };
         }
         const c = r.int(11, 999), uP = c < 100 ? 2 : 3, y = new MQ.Q(c, Math.pow(10, uP));
-        return { prompt: m('t.dec_count.q4b', { c, u: { k: unitKeys[uP] } }), widget: { type: 'input', fields: [field('a', y, { form: 'decimal' })] }, answer: m('c.num', { x: y }), explain: m('t.dec_count.ex4b', { c, x: y, u: { k: unitKeys[uP] } }) };
+        return { prompt: m('t.dec_count.q4b', { c, u: { k: unitKeys[uP] }, cu: { k: 'cnt.' + uP, v: { n: c } } }), widget: { type: 'input', fields: [field('a', y, { form: 'decimal' })] }, answer: m('c.num', { x: y }), explain: m('t.dec_count.ex4b', { c, x: y, u: { k: unitKeys[uP] }, cu: { k: 'cnt.' + uP, v: { n: c } }, g: { k: 'pl.-' + uP } }) };
       }
       const askDigit = r.chance(0.4);
       const pos = r.int(1, p);
@@ -208,11 +208,11 @@
       const digit = new MQ.Q(Math.floor(scaled.toNumber() + 1e-9) % 10);
       const ans = askDigit ? digit : count;
       return {
-        prompt: m(askDigit ? 't.dec_count.qDigit' : 't.dec_count.qCount', { x, u: { k: unitKeys[pos] } }),
+        prompt: m(askDigit ? 't.dec_count.qDigit' : 't.dec_count.qCount', { x, u: { k: unitKeys[pos] }, g: { k: 'pl.-' + pos } }),
         widget: { type: 'input', fields: [field('a', ans)] },
         diagnose: v => { if (!v.a) return null; if (!askDigit && v.a.eq(digit) && !digit.eq(count)) return m('t.dec_count.m.digit'); if (askDigit && v.a.eq(count) && !digit.eq(count)) return m('t.dec_count.m.count'); return null; },
         answer: m('c.num', { x: ans }),
-        explain: m(askDigit ? 't.dec_count.exDigit' : 't.dec_count.exCount', { x, u: { k: unitKeys[pos] }, c: count, d: digit }),
+        explain: m(askDigit ? 't.dec_count.exDigit' : 't.dec_count.exCount', { x, u: { k: unitKeys[pos] }, c: count, d: digit, g: { k: 'pl.-' + pos }, cc: { k: 'cnt.' + pos, v: { n: count } } }),
         wrong: digit.eq(count) ? [] : [{ fields: { a: (askDigit ? count : digit).toString() } }]
       };
     }
