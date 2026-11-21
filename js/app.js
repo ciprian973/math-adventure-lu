@@ -263,7 +263,7 @@
       main.appendChild(h('h1', {}, '🏅 ' + t('ui.badges')));
       const total = MQ.MAP.badges.length, got = MQ.MAP.badges.filter(b => p.badges.includes(b.id)).length;
       main.appendChild(h('p', {}, t('ui.badgeCount', { n: got, m: total }) + ' ' + t('ui.badgeTiers')));
-      const show = id => { const bt = MQ.badgeText(id); const has = p.badges.includes(id); App.modal(`<div class="badgeinfo">${MQ.medal(bt.tier, bt.icon, 120, !has)}<h2>${bt.name}${bt.tierName ? ` <small>· ${bt.tierName}</small>` : ''}</h2><p>${bt.desc}</p><p class="small">${has ? '✅ ' + t('ui.badgeHave') : '🔒 ' + t('ui.badgeNotYet')}</p></div>`, [{ label: t('ui.ok'), cls: 'primary' }]); };
+      const show = id => { const bt = MQ.badgeText(id); const has = p.badges.includes(id); App.modal(`<div class="badgeinfo">${MQ.medal(bt.tier, bt.icon, 120, !has)}<h2>${bt.name}</h2>${bt.tierName ? `<p class="tiername">${bt.tierName}</p>` : ''}<p>${bt.desc}</p><p class="small">${has ? '✅ ' + t('ui.badgeHave') : '🔒 ' + t('ui.badgeNotYet')}</p></div>`, [{ label: t('ui.ok'), cls: 'primary' }]); };
       MQ.MAP.BADGE_CATS.forEach(cat => {
         main.appendChild(h('h2', {}, t('badgecat.' + cat)));
         const grid = h('div', { class: 'famgrid' });

@@ -62,7 +62,7 @@
     const [fid, ts] = id.split(':'); const tier = +ts; const f = fam.find(x => x.id === fid); if (!f) return { name: id, desc: '', tier: 1, icon: '🏅' };
     let desc;
     if (f.cat === 'region') desc = tier < 5 ? t('badgef.k.region', { n: Math.ceil(f.max() * tier / 5), m: f.max(), r: { k: 'region.' + f.region } }) : t('badgef.k.region5', { r: { k: 'region.' + f.region } });
-    else if (f.cat === 'topic') desc = t('badgef.k.topic' + tier, { g: { raw: f.stages.map(s => t('stage.' + s)).join(', ') }, n: tier === 4 ? 10 : 25 });
+    else if (f.cat === 'topic') desc = t('badgef.k.topic' + (f.stages.length === 1 ? 'One' : '') + tier, { g: { raw: f.stages.map(s => t('stage.' + s)).join(', ') }, n: tier === 4 ? 10 : 25 });
     else if (f.id === 'champion') desc = tier < 5 ? t('badgef.champion.d', { n: tier }) : t('badgef.champion.d5');
     else desc = t('badgef.' + f.id + '.d', { n: f.thresholds[tier - 1] });
     return { name: t(f.nameKey), tierName: t('badge.tier.' + tier), desc, tier, icon: f.icon };

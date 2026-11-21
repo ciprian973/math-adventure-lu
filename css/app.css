@@ -304,11 +304,15 @@ body.contrast .hero, body.contrast .maptop.banner { background: #fff; }
 /* ---------- badges ---------- */
 .famgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: .7rem; }
 .fam h3 { margin: 0 0 .3rem; font-size: 1rem; }
-.medals { display: flex; justify-content: space-between; gap: .2rem; }
-.medalbtn { border: 0; background: none; padding: .1rem; display: flex; flex-direction: column; align-items: center; border-radius: 12px; min-width: 52px; }
+.medals { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .2rem; }
+.famgrid > * { min-width: 0; }
+.medalbtn { border: 0; background: none; padding: .1rem; display: flex; flex-direction: column; align-items: center; border-radius: 12px; min-width: 0; }
+.medalbtn svg { width: 100%; max-width: 58px; height: auto; }
+.medalbtn small { max-width: 100%; overflow-wrap: anywhere; text-align: center; }
 .medalbtn small { font-size: .7rem; color: var(--muted); } .medalbtn.has small { color: var(--ink); font-weight: 700; }
 .medalbtn:focus-visible { outline: 3px solid var(--blue); }
-.badgeinfo { text-align: center; } .badgeinfo h2 small { font-weight: 400; color: var(--muted); }
+.badgeinfo { text-align: center; } .badgeinfo h2 { margin: .4rem 0 0; overflow-wrap: anywhere; } .badgeinfo .tiername { margin: .1rem 0 .6rem; color: var(--muted); font-weight: 700; }
+.badgeinfo svg { max-width: 100%; height: auto; }
 @media (max-width: 640px) { .famgrid { grid-template-columns: 1fr; } }
 
 /* symbol keys under the answer boxes (fraction bar, brackets, signs) */
@@ -333,3 +337,13 @@ body.contrast .mathkeys .mk { background: #fff; border-color: #000; }
 body.contrast .nextstar { color: #000; }
 .xpnext { font-size: .9rem; color: var(--muted); white-space: nowrap; }
 .w-bins .tip { margin: 0 0 .4rem; font-size: .85rem; color: var(--muted); }
+
+/* nothing may be wider than a phone screen (long option texts, enlarged text) */
+.form select, .form input, main select { max-width: 100%; }
+.form label { min-width: 0; max-width: 100%; }
+.modal { min-width: 0; overflow-wrap: anywhere; }
+/* ordering rows: long numbers or sentences wrap instead of pushing the arrows off screen */
+.oitem { min-width: 0; max-width: 100%; box-sizing: border-box; }
+.oitem .olabel { min-width: 0; overflow-wrap: anywhere; }
+.oitem .mv { flex: none; }
+@media (max-width: 400px) { .oitem { gap: .35rem; padding: .35rem .4rem; } .oitem .mv { min-width: 40px; } .oitem .grip { padding: .1rem; } }
