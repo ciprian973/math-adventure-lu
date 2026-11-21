@@ -32,7 +32,7 @@
     }
     // numeric
     const p = MQ.parseAnswer(raw, lang);
-    if (!p.ok) return { ok: false, fb: { k: p.reason === 'unknownUnit' ? 'fb.unknownUnit' : 'fb.notNumber' } };
+    if (!p.ok) return { ok: false, value: p.value, fb: { k: { unknownUnit: 'fb.unknownUnit', expression: 'fb.onlyResult', eqMismatch: 'fb.eqMismatch' }[p.reason] || 'fb.notNumber' } };
     if (p.unit && f.unit && p.unit !== f.unit && !(f.unit === '€' && p.unit === '€')) return { ok: false, fb: { k: 'fb.wrongUnit', v: { unit: MQ.unitStr(f.unit) } }, value: p.value };
     const targets = [f.expect].concat(f.alt || []).map(x => Q.of(x));
     const valueOk = targets.some(t => t.eq(p.value));

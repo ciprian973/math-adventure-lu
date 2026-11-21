@@ -110,6 +110,14 @@
     // stages with no template
     MQ.MAP.regions.forEach(r => r.stages.forEach(s => { if (!MQ.T.forStage(s).length) report.errors.push('stage without templates: ' + s); }));
     // ---- number words sanity
+    // written calculations typed with the symbol keys: "calculation = result"
+    [['3 × 4 = 12', 'ro', 12], ['(2 + 3) × 4 = 20', 'fr', 20], ['12 : 3 = 4', 'de', 4], ['2,5 · 2 = 5', 'lb', 5], ['2.5 × 2 = 5', 'en', 5], ['3 × −2 = −6', 'ro', -6], ['1 000 + 2 = 1 002', 'fr', 1002], ['−3', 'ro', -3], ['3/4', 'en', '3/4'],
+     ['3 × 4', 'ro', 'expression'], ['12 =', 'ro', 'expression'], ['3 − 4', 'en', 'expression'], ['5 × 4 = 20 + 3 = 23', 'ro', 'eqMismatch'], ['5 × 4 = 21', 'en', 'eqMismatch']].forEach(([txt, l, want]) => {
+      const p = MQ.parseAnswer(txt, l);
+      const got = p.ok ? p.value : p.reason;
+      const ok = typeof want === 'string' && !/\//.test(want) ? (!p.ok && p.reason === want) : (p.ok && p.value.eq(MQ.Q.of(typeof want === 'string' ? new MQ.Q(+want.split('/')[0], +want.split('/')[1]) : want)));
+      if (!ok) report.errors.push(`parse ${l} ${JSON.stringify(txt)}: got ${got}, want ${want}`);
+    });
     LANGS.forEach(l => { for (let i = 0; i < 1000; i++) { const w = MQ.numwords.integer(i, l); if (!w || /undefined/.test(w)) report.errors.push(`numwords ${l} ${i}`); } });
     // ---- templates
     MQ.T.list.forEach(tp => {

@@ -173,6 +173,45 @@
     if (raw == null) return { ok: false, reason: 'empty' };
     let s = String(raw).trim().replace(/^=/, '').trim();
     if (!s) return { ok: false, reason: 'empty' };
+    // "calculation = result": the answer is what comes after the last "=";
+    // every earlier part that can be computed must have that same value
+    let chain = null;
+    if (s.includes('=')) {
+      const segs = s.split('=').map(x => x.trim());
+      s = segs.pop();
+      if (!s) return { ok: false, reason: 'expression' };
+      chain = segs.filter(Boolean).map(x => exprValue(x, lang)).filter(v => v != null);
+    }
+    if (/[×·*÷+():]/.test(s) || /[-−–]/.test(s.replace(/^[-−–]\s*/, ''))) return { ok: false, reason: 'expression' };
+    const p = parseNumberAnswer(s, raw, lang);
+    if (p.ok && chain && chain.some(v => !v.eq(p.value))) return { ok: false, reason: 'eqMismatch', value: p.value };
+    return p;
+  }
+
+  /* value of a small written calculation ("(2 + 3) × 4", "12 : 3", "2,5 · 2")
+   * — used only to check a pupil's "calculation = result"; null if unreadable */
+  function exprValue(str, lang) {
+    let s = String(str).replace(/[   ]/g, ' ').replace(/(\d) (?=\d{3}(?!\d))/g, '$1').replace(/(\d)\s*[xX]\s*(?=[\d(])/g, '$1×');
+    const toks = [], re = /\s*(?:([\d.,]+)|([+\-−–×·*÷:\/()]))/y;
+    let m; re.lastIndex = 0;
+    while (re.lastIndex < s.length && (m = re.exec(s))) {
+      if (m[1] != null) {
+        const n = normaliseNumber(m[1], lang); if (n == null) return null;
+        let q = Q.fromDecimalString(n);
+        if (toks.length && toks[toks.length - 1] === 'neg') { toks.pop(); q = q.mul(-1); }
+        toks.push(q);
+      } else {
+        const c = m[2], op = /[-−–]/.test(c) ? '-' : /[×·*]/.test(c) ? '*' : /[÷:\/]/.test(c) ? '/' : c;
+        const prev = toks[toks.length - 1];
+        if (op === '-' && (prev == null || prev === '(' || ['+', '-', '*', '/'].includes(prev))) toks.push('neg');
+        else toks.push(op);
+      }
+    }
+    if (/\S/.test(s.slice(re.lastIndex)) || !toks.length || toks.includes('neg')) return null;
+    try { return MQ.evalExpr ? MQ.evalExpr(toks) : null; } catch (e) { return null; }
+  }
+
+  function parseNumberAnswer(s, raw, lang) {
     // trailing unit
     let unit = null;
     const um = /^(.*?)[\s]*([a-zA-Z€%°²³]+[23²³]?\.?)$/.exec(s);

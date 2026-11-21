@@ -26,7 +26,7 @@ js/core/core.js       exact fractions (MQ.Q, BigInt where needed), seeded RNG, l
 js/core/i18n.js       t(key, vars), plural forms (Intl.PluralRules), typed variables (numbers, fractions, money, units, times, dates, expressions, number words)
 js/core/numwords.js   numbers, decimals and fractions in words in 5 languages (FR traditional spelling, LB n-rule, RO gender agreement)
 js/core/expr.js       arithmetic expressions with priority and brackets, evaluated exactly
-js/core/check.js      answer checking for every widget type; canonical answer (used by "show solution" and the self-test)
+js/core/check.js      answer checking for every widget type (numeric answers may be typed as "calculation = result": core.js parseAnswer checks every "=" in the chain); canonical answer (used by "show solution" and the self-test)
 js/figures/figures.js SVG drawing: number lines, fraction bars/pies, grids, coordinates, maps, protractor, ruler, solids, nets,
                       cube buildings and views, clocks, scales, jugs, charts, tangram, bar models, money
 js/data/curriculum.js PE objectives and contents (French wording), NC levels 7–10, MathemaTIC items with their PE links

@@ -15,6 +15,68 @@
   /* make an element keyboard-activatable */
   function pressable(el, fn) { el.setAttribute('tabindex', '0'); el.addEventListener('click', fn); el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(e); } }); return el; }
 
+  /* ---------------- symbol keys ----------------
+   * Phone and tablet keyboards for numbers have no fraction bar, brackets
+   * or × — these buttons type them into the answer box that was used last.
+   * They only type symbols; nothing is ever computed for the pupil. */
+  W.mathKeys = (fields, inputs, lang) => {
+    const kinds = fields.map(f => f.kind || 'num');
+    const num = kinds.some(k => k !== 'time' && k !== 'date' && k !== 'text');
+    if (!num && !kinds.includes('time') && !kinds.includes('date')) return null;
+    const st = MQ.i18n, dec = lang === 'en' ? '.' : ',';
+    const fracIcon = '<span class="kfrac" aria-hidden="true"><i></i><b></b><i></i></span>';
+    const K = [];
+    if (num) K.push(
+      { id: 'frac', html: fracIcon, ins: '/' },
+      { id: 'lpar', html: '(', ins: '(' }, { id: 'rpar', html: ')', ins: ')' },
+      { id: 'plus', html: '+', ins: '+', sp: 1 }, { id: 'minus', html: '−', ins: '−', sp: 1 },
+      { id: 'times', html: st.mulSign, ins: st.mulSign, sp: 1 }, { id: 'div', html: st.divSign, ins: st.divSign, sp: 1 },
+      { id: 'eq', html: '=', ins: '=', sp: 1 }, { id: lang === 'en' ? 'point' : 'comma', html: dec, ins: dec });
+    if (kinds.includes('time')) K.push({ id: 'colon', html: ':', ins: ':' });
+    if (kinds.includes('date')) K.push({ id: 'dot', html: '.', ins: '.' });
+    K.push({ id: 'back', html: '⌫', back: 1 });
+    const list = Object.values(inputs);
+    let last = list[0];
+    list.forEach(i => { i.addEventListener('focus', () => { last = i; refresh(); }); i.addEventListener('input', () => refresh()); });
+    const bar = h('div', { class: 'mathkeys', role: 'group', 'aria-label': MQ.t('ui.keys', {}, lang) });
+    const prev = h('div', { class: 'kprev', 'aria-hidden': 'true' });
+    const esc = x => x.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    function refresh() {
+      const v = last ? last.value : '';
+      if (!/[\/×·*:÷()+=]|\d\s*[-−]/.test(v) || (last && fields[list.indexOf(last)] && /time|date/.test(fields[list.indexOf(last)].kind || ''))) { prev.innerHTML = ''; prev.classList.remove('on'); return; }
+      prev.innerHTML = esc(v).replace(/\*/g, st.mulSign).replace(/(\d+(?:[.,]\d+)?)\s*\/\s*(\d+(?:[.,]\d+)?)/g, '<span class="frac"><span class="fn">$1</span><span class="fd">$2</span></span>');
+      prev.classList.add('on');
+    }
+    function type(k) {
+      const inp = last; if (!inp || inp.disabled) return;
+      const v = inp.value;
+      const a = inp.selectionStart != null ? inp.selectionStart : v.length, b = inp.selectionEnd != null ? inp.selectionEnd : v.length;
+      let left = v.slice(0, a), right = v.slice(b);
+      if (k.back) { if (a === b) left = left.replace(/\s+$/, '').slice(0, -1).replace(/\s+$/, ''); }
+      else {
+        const trimmed = left.replace(/\s+$/, '');
+        // a minus at the start or after "(" or another sign is a negative number: no spaces
+        const unary = k.id === 'minus' && (!trimmed || /[(+−\-×·*:÷=]$/.test(trimmed));
+        if (k.sp && !unary) { left = trimmed + (trimmed ? ' ' : '') + k.ins + ' '; right = right.replace(/^\s+/, ''); }
+        else left += k.ins;
+      }
+      inp.value = left + right; inp.focus({ preventScroll: true });
+      try { inp.setSelectionRange(left.length, left.length); } catch (e) { }
+      inp.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    const btns = K.map(k => {
+      const bt = h('button', { type: 'button', class: 'mk mk-' + k.id, 'aria-label': MQ.t('ui.key.' + k.id, {}, lang), title: MQ.t('ui.key.' + k.id, {}, lang) });
+      bt.innerHTML = k.html;
+      // keep the focus (and the phone keyboard) in the answer box
+      bt.addEventListener('pointerdown', e => e.preventDefault());
+      bt.addEventListener('mousedown', e => e.preventDefault());
+      bt.addEventListener('click', () => type(k));
+      bar.appendChild(bt); return bt;
+    });
+    const wrap = h('div', { class: 'mkwrap' }); wrap.appendChild(bar); wrap.appendChild(prev);
+    return { el: wrap, refresh, lock: () => btns.forEach(b => b.disabled = true) };
+  };
+
   /* ---------------- input ---------------- */
   W.input = (ex, lang, onSubmit) => {
     const w = ex.widget, box = h('div', { class: 'w-input' });
@@ -28,12 +90,14 @@
       if (f.unit) row.appendChild(h('span', { class: 'unit' }, MQ.unitStr(f.unit)));
       inputs[f.id] = inp; box.appendChild(row);
     });
+    const kb = W.mathKeys(w.fields, inputs, lang);
+    if (kb) box.appendChild(kb.el);
     box.appendChild(h('p', { class: 'tip' }, MQ.t(lang === 'en' ? 'ui.tipDecEn' : 'ui.tipDec', {}, lang)));
     return {
       el: box,
       get: () => ({ fields: Object.fromEntries(Object.entries(inputs).map(([k, v]) => [k, v.value])) }),
-      set: r => { if (r && r.fields) for (const k in r.fields) if (inputs[k]) inputs[k].value = r.fields[k]; },
-      lock: () => Object.values(inputs).forEach(i => i.disabled = true),
+      set: r => { if (r && r.fields) for (const k in r.fields) if (inputs[k]) inputs[k].value = r.fields[k]; if (kb) kb.refresh(); },
+      lock: () => { Object.values(inputs).forEach(i => i.disabled = true); if (kb) kb.lock(); },
       focus: () => { const f = Object.values(inputs)[0]; if (f) setTimeout(() => f.focus({ preventScroll: true }), 30); },
       mark: res => { if (res && res.fieldOk) for (const k in inputs) inputs[k].classList.toggle('bad', res.fieldOk[k] === false); }
     };

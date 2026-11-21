@@ -310,3 +310,20 @@ body.contrast .hero, body.contrast .maptop.banner { background: #fff; }
 .medalbtn:focus-visible { outline: 3px solid var(--blue); }
 .badgeinfo { text-align: center; } .badgeinfo h2 small { font-weight: 400; color: var(--muted); }
 @media (max-width: 640px) { .famgrid { grid-template-columns: 1fr; } }
+
+/* symbol keys under the answer boxes (fraction bar, brackets, signs) */
+.w-input .mkwrap { width: 100%; display: flex; flex-direction: column; gap: .35rem; }
+.mathkeys { display: flex; flex-wrap: wrap; gap: .35rem; }
+.mathkeys .mk { min-width: 46px; min-height: 46px; padding: 0 .55rem; font-family: inherit; font-weight: 700; font-size: 1.3rem; line-height: 1; color: var(--ink); background: #eef4ff; border: 2px solid #b9cdf0; border-radius: 12px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+.mathkeys .mk:hover { background: #dfeaff; } .mathkeys .mk:active { transform: translateY(1px); background: #cfe0ff; }
+.mathkeys .mk:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.mathkeys .mk:disabled { opacity: .45; cursor: default; }
+.mathkeys .mk-back { background: #fff3e6; border-color: #f0c99a; }
+.mathkeys .mk-eq { background: #e9f8ee; border-color: #a8dcb8; }
+.kfrac { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; }
+.kfrac i { display: block; width: 11px; height: 9px; border: 2px solid currentColor; border-radius: 2px; }
+.kfrac b { display: block; width: 18px; height: 3px; background: currentColor; border-radius: 2px; }
+.kprev { display: none; font-size: 1.35rem; padding: .2rem .5rem; color: var(--ink); }
+.kprev.on { display: block; }
+@media (max-width: 380px) { .mathkeys .mk { min-width: 40px; min-height: 42px; font-size: 1.15rem; padding: 0 .4rem; } .mathkeys { gap: .25rem; } }
+body.contrast .mathkeys .mk { background: #fff; border-color: #000; }
