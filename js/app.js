@@ -53,7 +53,7 @@
       }
       const sel = h('select', { class: 'langsel', 'aria-label': t('ui.language') });
       const narrow = App.narrow();
-      MQ.LANGS.forEach(l => { const o = h('option', { value: l }, narrow ? l.toUpperCase() : LANG_NAMES[l]); if (narrow) o.setAttribute('aria-label', LANG_NAMES[l]); if (l === s.lang) o.selected = true; sel.appendChild(o); });
+      MQ.LANGS.forEach(l => { const o = h('option', { value: l }, narrow ? (l === 'lb' ? 'LU' : l.toUpperCase()) : LANG_NAMES[l]); if (narrow) o.setAttribute('aria-label', LANG_NAMES[l]); if (l === s.lang) o.selected = true; sel.appendChild(o); });
       sel.onchange = () => App.setLang(sel.value); right.appendChild(sel);
       const mute = h('button', { class: 'icon', type: 'button', 'aria-pressed': !!s.mute, 'aria-label': t(s.mute ? 'ui.unmute' : 'ui.mute') }, s.mute ? '🔇' : '🔊');
       mute.onclick = () => { s.mute = !s.mute; G.save(); App.header(); }; right.appendChild(mute);

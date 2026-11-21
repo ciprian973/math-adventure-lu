@@ -250,11 +250,12 @@
         break;
       }
       case 'prism': {
-        const A = [25, 135], B = [75, 135], C = [50, 92], d = [80, -30];
+        // triangle in front, apex up, depth going back to the upper right:
+        // we see the front triangle and the right face; the left face is behind
+        const A = [30, 135], B = [100, 135], C = [65, 80], d = [45, -35];
         const A2 = [A[0] + d[0], A[1] + d[1]], B2 = [B[0] + d[0], B[1] + d[1]], C2 = [C[0] + d[0], C[1] + d[1]];
-        s += poly([A, B, C], 'face1') + poly([B, B2, C2, C], 'face3') + poly([C, C2, A2, A], 'face2');
-        s += L([A, A2, B2], 'ln dash');
-        // A-A2 hidden bottom edge, A2-C2 visible top
+        s += poly([B, B2, C2, C], 'face3') + poly([A, B, C], 'face1');
+        s += line(A[0], A[1], A2[0], A2[1], 'ln dash') + L([C2, A2, B2], 'ln dash');
         break;
       }
       case 'cylinder': {
@@ -280,7 +281,8 @@
         break;
       }
     }
-    return svg(s0, s0 * 0.9, s, label, 'solid');
+    // the drawings use a fixed 170-unit space; "size" only changes how big it is shown
+    return `<svg class="fig solid" viewBox="-6 -6 182 165" width="${r2(s0)}" style="max-width:100%;height:auto" role="img" aria-label="${esc(label || '')}" xmlns="http://www.w3.org/2000/svg">${s}</svg>`;
   };
 
   /* ---------------- Nets ---------------- */
