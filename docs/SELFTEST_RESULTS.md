@@ -1,9 +1,9 @@
 # Self-test results
 
-Run: 2026-11-21T19:27:07.444Z · Node v22.23.5
+Run: 2026-11-21T21:51:53.709Z · Node v22.23.5
 
 ```
-Templates: 124 · instances: 415000 (1000 per template and level) · 5 languages each · 74.9 s
+Templates: 124 · instances: 415000 (1000 per template and level) · 5 languages each · 84.3 s
 Errors: 0
 Plan d'études objectives/contents without template: none
 MathemaTIC items without template: MT.90 (4.2)

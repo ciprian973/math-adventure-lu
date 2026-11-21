@@ -55,7 +55,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 1rem; outline: none; }
 .form label.row { flex-direction: row; align-items: center; gap: .6rem; font-weight: 400; }
 .form input[type=text], .form input:not([type]), .form input[type=password] { padding: .6rem; border: 2px solid var(--line); border-radius: 12px; min-height: 48px; }
 .narrow { max-width: 380px; } .hint { color: var(--muted); margin: 0; } .privacy { color: var(--muted); max-width: 640px; }
-.stars { color: #e0a100; font-size: 1.3rem; letter-spacing: 2px; } .stars .off { color: #cbd5e1; }
+.stars { color: #e0a100; font-size: 1.3rem; letter-spacing: 2px; white-space: nowrap; } .stars .off { color: #cbd5e1; } .stars .sup { color: #c2410c; text-shadow: 0 0 3px rgba(255, 170, 60, .7); }
 
 /* ---------- profiles ---------- */
 .profgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 1rem; margin: 1rem 0; }

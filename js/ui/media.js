@@ -77,8 +77,21 @@
     gold: () => band('#e8b923', 6) + band('#fff3b0', 1.5) + ring(['✨'], 6, 46, 9),
     platinum: () => band('#9fd8e8', 6) + band('#f2fbff', 1.5) + ring(['✦'], 8, 46, 8),
     diamond: () => band('#6ec6ff', 6) + ring(['💎'], 6, 45, 10),
-    legend: () => band('url(#mqRainbow)', 6) + ring(['👑', '⭐'], 6, 45, 10)
+    legend: () => band('url(#mqRainbow)', 6) + ring(['👑', '⭐'], 6, 45, 10),
+    mythic: () => band('#8b1e2d', 6) + band('#e8b923', 1.5) + ring(['🐉', '🔥'], 6, 45, 10),
+    cosmic: () => band('#1b1464', 6) + band('#9fd8ff', 1, 'stroke-dasharray="1 3"') + ring(['🪐', '✨', '🌙'], 9, 45, 9),
+    titan: () => band('#c8961e', 7) + band('#fff3b0', 2) + ring(['🔱', '⚡'], 8, 45, 10),
+    starry: () => band('#ffd23f', 5) + ring(['⭐'], 10, 44, 10),
+    comet: () => band('#7fb2ff', 5) + ring(['☄️', '✨'], 8, 44, 11),
+    galaxy: () => band('url(#mqGalaxy)', 6) + ring(['🌠', '⭐', '🪐'], 9, 44, 10)
   };
+  const GRADS = {
+    mqRainbow: [['0', '#ff4d4d'], ['.25', '#ffb84d'], ['.5', '#5dd35d'], ['.75', '#4da6ff'], ['1', '#b84dff']],
+    mqGold: [['0', '#fff3b0'], ['.45', '#e8a317'], ['1', '#9a6b0e']],
+    mqGalaxy: [['0', '#1a0640'], ['.5', '#5b2a9e'], ['1', '#1f5fa8']],
+    mqAurora: [['0', '#b8f5d0'], ['.5', '#a8d8ff'], ['1', '#e6c8ff']]
+  };
+  const laurelAcc = col => [200, 218, 236, 254, 286, 304, 322, 340].map(a => { const r = a * Math.PI / 180, x = 50 + 25 * Math.cos(r), y = 47 + 25 * Math.sin(r); return `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="4.6" ry="2.2" transform="rotate(${(a + 90 + (a < 270 ? 30 : -30)).toFixed(0)} ${x.toFixed(1)} ${y.toFixed(1)})" fill="${col}"/>`; }).join('');
   MQ.FRAMES = Object.keys(FRAMES);
 
   MQ.mascot = (av = {}, size = 96, mood = 'happy') => {
@@ -104,16 +117,26 @@
       graduate: '<path d="M22 26 l28 -10 l28 10 l-28 10 z" fill="#1d2433"/><rect x="38" y="28" width="24" height="8" fill="#1d2433"/><path d="M74 27 v12" stroke="#f5c518" stroke-width="2"/><circle cx="74" cy="40" r="2.5" fill="#f5c518"/>',
       astronaut: '<circle cx="50" cy="55" r="33" fill="#cfefff" fill-opacity=".28" stroke="#e6eef5" stroke-width="4"/><path d="M28 34 q8 -10 20 -12" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/><rect x="40" y="86" width="20" height="6" rx="2" fill="#e6eef5"/>',
       hero: '<path d="M28 50 q12 -10 22 -2 q10 -8 22 2 q-4 10 -12 8 q-6 -1 -10 -4 q-4 3 -10 4 q-8 2 -12 -8z" fill="#d7263d"/><circle cx="42" cy="52" r="2.6" fill="#fff"/><circle cx="58" cy="52" r="2.6" fill="#fff"/>',
-      diamondcrown: '<path d="M30 30 l6 -16 l7 10 l7 -14 l7 14 l7 -10 l6 16 z" fill="#bfe9ff" stroke="#3aa0d8" stroke-width="1.5"/><path d="M50 14 l3 4 l-3 4 l-3 -4z" fill="#6ec6ff"/><circle cx="37" cy="24" r="1.8" fill="#fff"/><circle cx="63" cy="24" r="1.8" fill="#fff"/>'
+      diamondcrown: '<path d="M30 30 l6 -16 l7 10 l7 -14 l7 14 l7 -10 l6 16 z" fill="#bfe9ff" stroke="#3aa0d8" stroke-width="1.5"/><path d="M50 14 l3 4 l-3 4 l-3 -4z" fill="#6ec6ff"/><circle cx="37" cy="24" r="1.8" fill="#fff"/><circle cx="63" cy="24" r="1.8" fill="#fff"/>',
+      tiara: '<path d="M33 35 q17 -8 34 0 l-1.5 -5 q-15.5 -6 -31 0 z" fill="#e3e3ef" stroke="#9a9ab5" stroke-width="1"/><path d="M41 30 l3 -8 l3 7 z M47 29 l3 -11 l3 11 z M53 29 l3 -7 l3 8 z" fill="#e3e3ef" stroke="#9a9ab5" stroke-width="1" stroke-linejoin="round"/><circle cx="50" cy="25" r="2.2" fill="#e75480"/><circle cx="44" cy="27.5" r="1.4" fill="#6ec6ff"/><circle cx="56" cy="27.5" r="1.4" fill="#6ec6ff"/>',
+      knight: '<path d="M27 40 q0 -26 23 -26 q23 0 23 26 z" fill="#aab4be" stroke="#6b7682" stroke-width="1.5"/><path d="M50 15 v24" stroke="#8a95a1" stroke-width="2"/><rect x="25" y="37" width="50" height="5" rx="2" fill="#6b7682"/><path d="M50 15 q6 -11 17 -8 q-9 2 -13 11 z" fill="#d7263d"/>',
+      detective: '<path d="M28 37 q22 -26 44 0 z" fill="#8b6b43"/><path d="M33 31 h34 M38 25 h24" stroke="#5a4228" stroke-width="1.2"/><path d="M23 37 h54 q-5 6 -27 6 q-22 0 -27 -6 z" fill="#6e5232"/><circle cx="79" cy="76" r="7" fill="#d8f1ff" fill-opacity=".65" stroke="#5a4228" stroke-width="2.5"/><path d="M74 81 l-7 7" stroke="#5a4228" stroke-width="3.2" stroke-linecap="round"/>',
+      unicorn: '<path d="M50 5 l-6 27 h12 z" fill="#fff0f7" stroke="#e7a6c8" stroke-width="1" stroke-linejoin="round"/><path d="M45.5 26 l9 -3 M46.7 19 l7 -2.3 M48 12.5 l4.4 -1.5" stroke="#e7a6c8" stroke-width="1.1"/><circle cx="40" cy="31" r="2.6" fill="#b8a4ff"/><circle cx="60" cy="31" r="2.6" fill="#ffd23f"/>',
+      halo: '<ellipse cx="50" cy="15" rx="17" ry="4.5" fill="none" stroke="#ffcf1f" stroke-width="3.2"/><ellipse cx="50" cy="15" rx="17" ry="4.5" fill="none" stroke="#fff7c2" stroke-width="1"/>',
+      laurel: laurelAcc('#d4a017'),
+      dragon: '<path d="M35 35 q-9 -13 -2 -27 q0 14 8 23 z" fill="#7b3fa0" stroke="#4e2368" stroke-width="1"/><path d="M65 35 q9 -13 2 -27 q0 14 -8 23 z" fill="#7b3fa0" stroke="#4e2368" stroke-width="1"/><path d="M14 66 q-6 -16 6 -26 q-1 10 6 14 q-6 4 -12 12 z M86 66 q6 -16 -6 -26 q1 10 -6 14 q6 4 12 12 z" fill="#9b5fc0" opacity=".9"/>',
+      starcrown: '<path d="M30 33 l4 -17 l8 9 l8 -15 l8 15 l8 -9 l4 17 z" fill="url(#mqGold)" stroke="#a87b12" stroke-width="1.5"/><text x="50" y="16" font-size="10" text-anchor="middle">🌟</text><text x="34" y="20" font-size="6" text-anchor="middle">⭐</text><text x="66" y="20" font-size="6" text-anchor="middle">⭐</text>'
     }[av.acc || 'none'] || '';
     // face details: the girl lion has a softer, smaller mane, eyelashes and a little tuft-bow
     const maneR = girl ? 8 : 9, maneDist = girl ? 25 : 26;
     const lashes = girl ? '<path d="M38 48.5 l-2 -2.5 M40.5 47.6 l-0.8 -3 M43.5 48 l0.6 -2.8" stroke="#222" stroke-width="1.3" stroke-linecap="round"/><path d="M62 48.5 l2 -2.5 M59.5 47.6 l0.8 -3 M56.5 48 l-0.6 -2.8" stroke="#222" stroke-width="1.3" stroke-linecap="round"/>' : '';
-    const tuft = girl && !['bow', 'crown', 'wizard', 'chef', 'pirate', 'viking', 'graduate', 'astronaut', 'diamondcrown', 'cap'].includes(av.acc) ? '<path d="M50 31 l-7 -4 v8 z M50 31 l7 -4 v8 z" fill="#ff4f8b"/><circle cx="50" cy="31" r="2.2" fill="#d61f69"/>' : (!girl ? '<path d="M47 33 q3 -7 6 0" fill="' + fur + '"/>' : '');
-    const space = bgItem.id === 'space' ? [[20, 22], [78, 18], [84, 70], [16, 76], [30, 88], [70, 90]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.2" fill="#fff"/>`).join('') : '';
+    const tuft = girl && !['bow', 'crown', 'wizard', 'chef', 'pirate', 'viking', 'graduate', 'astronaut', 'diamondcrown', 'cap', 'tiara', 'knight', 'detective', 'unicorn', 'laurel', 'dragon', 'starcrown'].includes(av.acc) ? '<path d="M50 31 l-7 -4 v8 z M50 31 l7 -4 v8 z" fill="#ff4f8b"/><circle cx="50" cy="31" r="2.2" fill="#d61f69"/>' : (!girl ? '<path d="M47 33 q3 -7 6 0" fill="' + fur + '"/>' : '');
+    const space = bgItem.id === 'space' || bgItem.id === 'galaxybg' ? [[20, 22], [78, 18], [84, 70], [16, 76], [30, 88], [70, 90]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.2" fill="#fff"/>`).join('') : '';
     const frameId = av.frame === 'auto' ? MQ.seasonFrame() : (av.frame || 'none');
     const frame = (FRAMES[frameId] || FRAMES.none)();
-    const defs = (fur.includes('mqRainbow') || frameId === 'legend') ? '<defs><linearGradient id="mqRainbow" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff4d4d"/><stop offset=".25" stop-color="#ffb84d"/><stop offset=".5" stop-color="#5dd35d"/><stop offset=".75" stop-color="#4da6ff"/><stop offset="1" stop-color="#b84dff"/></linearGradient></defs>' : '';
+    const used = fur + bg + acc + frame + (frameId === 'legend' ? 'url(#mqRainbow)' : '');
+    const grads = Object.keys(GRADS).filter(g => used.includes('url(#' + g + ')'));
+    const defs = grads.length ? '<defs>' + grads.map(g => `<linearGradient id="${g}" x1="0" y1="0" x2="1" y2="1">${GRADS[g].map(([o, c]) => `<stop offset="${o}" stop-color="${c}"/>`).join('')}</linearGradient>`).join('') + '</defs>' : '';
     return `<svg class="mascot" viewBox="0 0 100 100" width="${size}" height="${size}" role="img" aria-label="Léo">${defs}<circle cx="50" cy="50" r="49" fill="${bg}"/>${space}
       <g fill="${fur}"><circle cx="50" cy="55" r="30" opacity=".55"/>${[0, 40, 80, 120, 160, 200, 240, 280, 320].map(a => `<circle cx="${(50 + maneDist * Math.cos(a * Math.PI / 180)).toFixed(1)}" cy="${(55 + maneDist * Math.sin(a * Math.PI / 180)).toFixed(1)}" r="${maneR}"/>`).join('')}</g>
       <circle cx="50" cy="56" r="21" fill="#ffd9a8"/><circle cx="35" cy="38" r="6" fill="${fur}"/><circle cx="65" cy="38" r="6" fill="${fur}"/>${tuft}

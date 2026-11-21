@@ -19,8 +19,23 @@
       if (!d || d.v !== 1) d = { v: 1, profiles: [], active: null, settings: { lang: null, mute: false, dyslexia: false, mulSign: '×', pinHash: null, textScale: 1, rate: 0.95, contrast: false } };
       G.data = d;
       // badges moved to families with five tiers: drop old single badges, award silently what is earned now
-      d.profiles.forEach(p => { if (!p.badgesV2) { p.badges = (p.badges || []).filter(b => b === 'firstStep' || b.includes(':')); p.badgesV2 = true; } G.checkBadges(p); });
+      d.profiles.forEach(p => { if (!p.badgesV2) { p.badges = (p.badges || []).filter(b => b === 'firstStep' || b.includes(':')); p.badgesV2 = true; } G.migrateV3(p); G.checkBadges(p); });
       return d;
+    },
+    /* v3 progression (6 stars per topic, slower levels after 20): nothing already earned is taken away —
+     * stars earned under the old rules are kept (s.sk), the player level never goes down (p.lvlFloor),
+     * and first-try answers at each level are counted (byLevel[L].f), backfilled from the history */
+    migrateV3(p) {
+      if (p.progV3) return;
+      const oldLevel = xp => { let L = 1; while (xp >= 25 * L * (L + 1)) L++; return L; };
+      Object.entries(p.stages || {}).forEach(([sid, s]) => {
+        const b = s.byLevel || {}, c = L => (b[L] || { c: 0 }).c;
+        let old = 0; if (s.correct >= 5) old = 1; if (old >= 1 && c(3) + c(4) >= 4) old = 2; if (old >= 2 && c(4) >= 3) old = 3;
+        s.sk = Math.max(s.sk || 0, old);
+        [1, 2, 3, 4, 5].forEach(L => { if (b[L] && b[L].f == null) b[L].f = Math.min(b[L].c, (p.history || []).filter(h => h.s === sid && h.L === L && h.ok === 1).length); });
+      });
+      const ol = oldLevel(p.xp || 0); if (ol > G.levelOf(p.xp || 0)) p.lvlFloor = ol;
+      p.progV3 = true;
     },
     blitzUsedToday(p, sid) { return ((p.blitzDay || {})[sid]) === today(); },
     markBlitz(p, sid) { (p.blitzDay = p.blitzDay || {})[sid] = today(); G.save(); },
@@ -32,43 +47,55 @@
     newProfile(name, avatar) {
       const p = { id: 'p' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36), name: String(name).slice(0, 24), avatar: avatar || { fur: 'red', acc: 'none', bg: 'sky' }, created: today(),
         xp: 0, stages: {}, objectives: {}, errors: {}, time: { total: 0, byStage: {} }, badges: [], boss: {}, blitz: {}, assigned: [], history: [],
-        streak: { days: 0, last: null }, quest: null, stats: { correct: 0, attempts: 0, noHintStreak: 0, noHintStreakBest: 0, questsDone: 0, retrySuccess: 0 } };
+        streak: { days: 0, last: null }, quest: null, progV3: true, newsV3: true, stats: { correct: 0, attempts: 0, noHintStreak: 0, noHintStreakBest: 0, questsDone: 0, retrySuccess: 0 } };
       G.data.profiles.push(p); G.data.active = p.id; G.save(); return p;
     },
     deleteProfile(id) { G.data.profiles = G.data.profiles.filter(p => p.id !== id); if (G.data.active === id) G.data.active = null; G.save(); },
 
     /* ---- per-stage state ---- */
-    stage(p, sid) { if (!p.stages[sid]) p.stages[sid] = { level: 1, auto: true, attempts: 0, correct: 0, byLevel: { 1: { c: 0, a: 0 }, 2: { c: 0, a: 0 }, 3: { c: 0, a: 0 }, 4: { c: 0, a: 0 }, 5: { c: 0, a: 0 } }, recent: [], suggested: 0 }; const s = p.stages[sid]; if (!s.byLevel[5]) s.byLevel[5] = { c: 0, a: 0 }; return s; },
-    /* level 5 (extreme) opens when the topic has all 3 stars */
-    /* opened by 3 stars, or by a parent/teacher (p.xUnlock: 'all' or a list of stages) */
+    stage(p, sid) { if (!p.stages[sid]) p.stages[sid] = { level: 1, auto: true, attempts: 0, correct: 0, byLevel: { 1: { c: 0, a: 0, f: 0 }, 2: { c: 0, a: 0, f: 0 }, 3: { c: 0, a: 0, f: 0 }, 4: { c: 0, a: 0, f: 0 }, 5: { c: 0, a: 0, f: 0 } }, recent: [], suggested: 0, sk: 0 }; const s = p.stages[sid]; if (!s.byLevel[5]) s.byLevel[5] = { c: 0, a: 0, f: 0 }; return s; },
+    /* level 5 (extreme) opens with the 3rd star of a topic, or by a parent/teacher (p.xUnlock: 'all' or a list of stages) */
     extremeOpen(p, sid) { return MQ.T.forStage(sid, 5).length > 0 && (G.stars(p, sid) >= 3 || G.extremeByAdult(p, sid)); },
     extremeByAdult(p, sid) { return p.xUnlock === 'all' || (Array.isArray(p.xUnlock) && p.xUnlock.includes(sid)); },
     extremeCount(p) { return Object.values(p.stages).reduce((a, s) => a + ((s.byLevel || {})[5] || { c: 0 }).c, 0); },
+    /* six stars per topic; each star needs the previous one. Counts only ever grow, so stars are never lost;
+     * s.sk keeps the stars earned under the earlier (easier) rules. */
+    MAXSTARS: 6,
+    STAR_RULES: [
+      { need: 10, count: s => s.correct },                                   // 1: 10 correct answers (any level)
+      { need: 8, count: s => G._c(s, 3) + G._c(s, 4) + G._c(s, 5) },        // 2: 8 at level 3 or higher
+      { need: 8, count: s => G._c(s, 4) + G._c(s, 5) },                     // 3: 8 at level 4 or higher → opens level 5
+      { need: 15, count: s => ((s.byLevel || {})[4] || {}).f || 0 },          // 4: 15 at level 4 right on the first try
+      { need: 3, count: s => G._c(s, 5) },                                   // 5: 3 extreme problems
+      { need: 10, count: s => G._c(s, 5) }                                   // 6: 10 extreme problems
+    ],
+    _c(s, L) { return ((s.byLevel || {})[L] || { c: 0 }).c; },
     stars(p, sid) {
-      const s = p.stages[sid]; if (!s) return 0; const b = s.byLevel;
-      let st = 0; if (s.correct >= 5) st = 1;
-      if (st >= 1 && b[3].c + b[4].c >= 4) st = 2;
-      if (st >= 2 && b[4].c >= 3) st = 3;
+      const s = p.stages[sid]; if (!s) return 0;
+      let st = 0; for (let k = 1; k <= G.MAXSTARS; k++) { if (k <= (s.sk || 0) || G.STAR_RULES[k - 1].count(s) >= G.STAR_RULES[k - 1].need) st = k; else break; }
       return st;
     },
-    /* what is still missing for the next star of a topic (null when all 3 are there):
-     * { star: 1|2|3, need: correct answers still needed, level: 0 (any) | 3 (level 3 or 4) | 4 } */
+    totalStars(p) { return MQ.MAP.regions.reduce((a, r) => a + G.regionStars(p, r), 0); },
+    /* what is still missing for the next star of a topic (null when all six are there): { star, need } */
     nextStar(p, sid) {
-      const n = G.stars(p, sid); if (n >= 3) return null;
-      const s = p.stages[sid], b = s ? s.byLevel : { 3: { c: 0 }, 4: { c: 0 } }, c = s ? s.correct : 0;
-      if (n === 0) return { star: 1, need: Math.max(1, 5 - c), level: 0 };
-      if (n === 1) return { star: 2, need: Math.max(1, 4 - b[3].c - b[4].c), level: 3 };
-      return { star: 3, need: Math.max(1, 3 - b[4].c), level: 4 };
+      const n = G.stars(p, sid); if (n >= G.MAXSTARS) return null;
+      const s = p.stages[sid] || { correct: 0, byLevel: {} }, R = G.STAR_RULES[n];
+      return { star: n + 1, need: Math.max(1, R.need - R.count(s)) };
     },
     regionStars(p, r) { return r.stages.reduce((a, s) => a + G.stars(p, s), 0); },
 
     /* ---- personal leagues (by total XP; no ranking against other children) ---- */
-    LEAGUES: [{ id: 'bronze', xp: 0, icon: '🥉' }, { id: 'silver', xp: 500, icon: '🥈' }, { id: 'gold', xp: 1500, icon: '🥇' }, { id: 'platinum', xp: 3500, icon: '💠' }, { id: 'diamond', xp: 7000, icon: '💎' }, { id: 'legend', xp: 12000, icon: '👑' }],
+    LEAGUES: [{ id: 'bronze', xp: 0, icon: '🥉' }, { id: 'silver', xp: 500, icon: '🥈' }, { id: 'gold', xp: 1500, icon: '🥇' }, { id: 'platinum', xp: 3500, icon: '💠' }, { id: 'diamond', xp: 7000, icon: '💎' }, { id: 'legend', xp: 12000, icon: '👑' }, { id: 'mythic', xp: 20000, icon: '🐉' }, { id: 'cosmic', xp: 32000, icon: '🌌' }, { id: 'titan', xp: 50000, icon: '🔱' }],
     leagueOf(xp) { let i = 0; G.LEAGUES.forEach((l, k) => { if (xp >= l.xp) i = k; }); return i; },
-    unlocked(p, it) { return it.league != null ? G.leagueOf(p.xp) >= it.league : G.levelOf(p.xp) >= (it.lvl || 1); },
+    unlocked(p, it) { return it.league != null ? G.leagueOf(p.xp) >= it.league : it.stars != null ? G.totalStars(p) >= it.stars : G.level(p) >= (it.lvl || 1); },
     /* ---- XP and player level ---- */
-    levelOf(xp) { let L = 1; while (xp >= 25 * L * (L + 1)) L++; return L; },     // 50, 150, 300, 500 …
-    levelRange(L) { return [25 * (L - 1) * L, 25 * L * (L + 1)]; },
+    /* XP needed to pass level L: 50·L per level up to level 19 (50, 150, 300 … 9500); from level 20 on,
+     * each level costs 10 % more for every level above 19 (20 → 21: 1100 XP, 25 → 26: 2000, 30 → 31: 3150) */
+    _need: [0],
+    need(L) { const N = G._need; while (N.length <= L) { const k = N.length; N.push(N[k - 1] + (k < 20 ? 50 * k : 50 * Math.round(k * (1 + 0.1 * (k - 19))))); } return N[L]; },
+    levelOf(xp) { let L = 1; while (xp >= G.need(L)) L++; return L; },
+    level(p) { return Math.max(G.levelOf(p.xp), p.lvlFloor || 1); },
+    levelRange(L) { return [G.need(L - 1), G.need(L)]; },
 
     /* ---- record an answer; returns events for the UI ---- */
     record(p, ex, ctx) {
@@ -78,7 +105,7 @@
       const firstTry = ctx.tries === 1;
       const starsBefore = G.stars(p, sid), xBefore = G.extremeOpen(p, sid);
       st.attempts++; st.byLevel[L].a++; p.stats.attempts++;
-      if (ctx.correct) { st.correct++; st.byLevel[L].c++; p.stats.correct++; }
+      if (ctx.correct) { st.correct++; st.byLevel[L].c++; p.stats.correct++; if (firstTry) st.byLevel[L].f = (st.byLevel[L].f || 0) + 1; }
       ev.starUp = G.stars(p, sid) > starsBefore ? G.stars(p, sid) : 0;
       ev.extremeOpened = !xBefore && G.extremeOpen(p, sid);
       // XP: learning first — never negative
@@ -86,7 +113,7 @@
       if (ctx.correct && !firstTry) { xp = Math.ceil(xp / 2); p.stats.retrySuccess++; }
       if (ctx.hints && xp) xp = Math.max(1, Math.ceil(xp * (1 - 0.2 * ctx.hints)));
       if (ctx.mode === 'boss') xp += ctx.correct ? 5 : 0;
-      const before = G.levelOf(p.xp), lgBefore = G.leagueOf(p.xp); p.xp += xp; ev.xp = xp; ev.levelUp = G.levelOf(p.xp) > before;
+      const before = G.level(p), lgBefore = G.leagueOf(p.xp); p.xp += xp; ev.xp = xp; ev.levelUp = G.level(p) > before;
       // no-hint streak
       if (ctx.correct && !ctx.hints && firstTry) { p.stats.noHintStreak++; p.stats.noHintStreakBest = Math.max(p.stats.noHintStreakBest, p.stats.noHintStreak); } else p.stats.noHintStreak = 0;
       // objectives mastery (recent window of 10)

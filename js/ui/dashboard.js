@@ -54,7 +54,7 @@
     renderOverview(box, p) {
       const acc = p.stats.attempts ? p.stats.correct / p.stats.attempts : null;
       box.innerHTML = `<div class="kpis">
-        <div class="kpi"><b>${G.levelOf(p.xp)}</b><span>${t('dash.level')}</span></div>
+        <div class="kpi"><b>${G.level(p)}</b><span>${t('dash.level')}</span></div>
         <div class="kpi"><b>${p.xp}</b><span>XP</span></div>
         <div class="kpi"><b>${G.LEAGUES[G.leagueOf(p.xp)].icon}</b><span>${t('league.' + G.LEAGUES[G.leagueOf(p.xp)].id)}</span></div>
         <div class="kpi"><b>${p.stats.attempts}</b><span>${t('dash.exercises')}</span></div>
@@ -184,7 +184,7 @@
     printReport(p) {
       const div = h('div', { id: 'printarea' });
       const tmp = h('div'); D.renderMastery(tmp, p);
-      div.innerHTML = `<h1>${t('app.title')} — ${esc(p.name)}</h1><p>${new Date().toLocaleDateString()} · ${t('dash.level')} ${G.levelOf(p.xp)} · ${p.stats.attempts} ${t('dash.exercises')} · ${mins(p.time.total)} min</p>` + tmp.innerHTML;
+      div.innerHTML = `<h1>${t('app.title')} — ${esc(p.name)}</h1><p>${new Date().toLocaleDateString()} · ${t('dash.level')} ${G.level(p)} · ${p.stats.attempts} ${t('dash.exercises')} · ${mins(p.time.total)} min</p>` + tmp.innerHTML;
       document.body.appendChild(div); document.body.classList.add('printing');
       setTimeout(() => { window.print(); setTimeout(() => { document.body.classList.remove('printing'); div.remove(); }, 500); }, 100);
     },

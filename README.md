@@ -21,10 +21,10 @@ For every one of the 97 templates and each of its 4 levels the self-test generat
 
 Every topic has a fifth level, **Extreme**: very hard problems that still need only cycle 4 knowledge, but patience, a drawing, trying small cases and checking (counting digits and paths, working backwards, hidden digits, clock angles, painted cubes, hens and rabbits, who is lying…). There are 2–3 kinds of problem per topic (59 kinds in all), each with new numbers every time, three graded hints, an explanation with the actual numbers, and feedback for the typical wrong idea where there is one.
 
-- Level 5 of a topic opens when the topic has all 3 stars; the automatic level choice never moves a child there, and wrong answers there never lower the level.
+- Level 5 of a topic opens with the third star of the topic; the automatic level choice never moves a child there, and wrong answers there never lower the level.
 - A parent or teacher can open level 5 earlier, in the PIN-protected dashboard (tab *Assign*): for every topic at once or topic by topic. Exercise sets can use level 5 too, or the mix *up to extreme* (levels 2 → 5, the last quarter extreme); a set chosen by an adult can be played even where the child has not opened level 5. A child's own quick set at level 5 works only for topics that are open.
 - The **Kneiff summit** (the highest point of Luxembourg) on the map mixes the extreme problems of every topic that is open, and lets the child practise one open topic at a time.
-- A correct extreme answer gives 40 XP; the badge family *Kneiff Climber* counts them (1, 5, 15, 40, 100).
+- A correct extreme answer gives 40 XP; the badge family *Kneiff Climber* counts them (3, 15, 50, 150, 400).
 - Answers are found by trying every case wherever possible (enumeration), so they are right by construction; `node tools/selftest.js` checks them like every other exercise, and every kind was also re-checked by an independent script that recomputes the answer from the numbers in the statement (simulation, counting, calendar dates).
 
 ## Symbol keys under the answer box
@@ -35,13 +35,15 @@ The pupil may type only the result or the whole calculation ending with "=" and 
 
 ## Stars per topic
 
-Each topic has 3 stars: 5 correct answers at any level, then 4 correct at level 3 or 4, then 3 correct at level 4. The topic card and the practice screen say how many correct answers are still missing for the next star, and a short message celebrates each new star. After every correct answer the feedback also says how many XP are missing for the next player level.
+Each topic has 6 stars, each needing the one before: 10 correct answers at any level; 8 correct at level 3 or higher; 8 correct at level 4 or higher (this opens level 5); 15 answers right on the first try at level 4; then the "super stars": 3 and 10 extreme problems solved (level 5). Stars 4–6 are drawn in another colour. Stars are never taken away: stars earned under the earlier 3-star rules are kept, and counts only grow. The topic card and the practice screen say how many correct answers are still missing for the next star, and a short message celebrates each new star. After every correct answer the feedback also says how many XP are missing for the next player level.
 
 ## Léo, leagues and rewards
 
-Each child dresses up their own lion: boy or girl, fur colour, accessories, a frame and a background. Most items unlock with the player level (some only at level 20–30, so they take real effort); seasonal frames (winter, spring, summer, autumn, Christmas, Halloween, or "season of today", which changes by itself with the calendar), Luxembourg National Day and Schueberfouer frames, and special frames for each league. Leagues (Bronze, Silver, Gold, Platinum, Diamond, Legend) follow the XP a child has collected; they show personal progress only — there is no ranking against other children. The lion also sits on the read-aloud button.
+Each child dresses up their own lion: boy or girl, fur colour, accessories, a frame and a background. Most items unlock with the player level (some only at level 20–50, so they take real effort; a few frames unlock with the total number of stars: 60, 110 and all 162); seasonal frames (winter, spring, summer, autumn, Christmas, Halloween, or "season of today", which changes by itself with the calendar), Luxembourg National Day and Schueberfouer frames, and special frames for each league. Leagues (Bronze, Silver, Gold, Platinum, Diamond, Legend, Mythic, Cosmic, Titan) follow the XP a child has collected; they show personal progress only — there is no ranking against other children. The lion also sits on the read-aloud button.
 
-**Badges** come in 24 families (the four map regions, 14 topic groups covering all 27 topics, and effort: correct answers, error-free streaks, days in a row, daily quests, level-4 work, perseverance, the 2-minute challenge, exercise sets, exploring, region challenges), each with five tiers drawn as medals: I bronze with ribbon, II silver with oak leaves, III gold with laurels, Supreme (diamond, laurels and crossed swords) and Maximum (legendary crown) — 121 badges in all, the top tiers taking months.
+**Player levels**: each level up to 19 costs 50 XP more than the one before (level 20 at 9 500 XP); from level 20 on, every level costs another 10 % more per level (20 → 21: 1 100 XP, 30 → 31: 3 150 XP). The player level never goes down when the rules change.
+
+**Badges** come in 32 families (the four map regions, 14 topic groups covering all 27 topics, and effort: correct answers, error-free streaks, days in a row, daily quests, level-4 work, perseverance, the 2-minute challenge, exercise sets, exploring, extreme problems, total stars, six-star topics, player level, region challenges), each with five tiers drawn as medals: I bronze with ribbon, II silver with oak leaves, III gold with laurels, Supreme (diamond, laurels and crossed swords) and Maximum (legendary crown) — 161 badges in all, the top tiers taking months. Topic tiers need 2, 3, 4, 5 and all 6 stars in every topic of the group. Badges already earned are never removed when thresholds change.
 
 **The 2-minute challenge** can be played once a day per topic; only correct answers count, and wrong answers give no XP anywhere in the app. A wrong answer given within a few seconds shows a gentle reminder to read the exercise first.
 

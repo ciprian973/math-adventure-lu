@@ -52,8 +52,8 @@
       home.onclick = () => App.go(G.active() ? 'map' : 'profiles'); hd.appendChild(home);
       const right = h('div', { class: 'tools' });
       if (p) {
-        const L = G.levelOf(p.xp), [a, b] = G.levelRange(L);
-        const chip = h('button', { class: 'pchip', type: 'button', 'aria-label': t('ui.profileMenu') }, `<b>${esc(p.name)}</b><span class="lg" title="${t('league.' + G.LEAGUES[G.leagueOf(p.xp)].id)}">${G.LEAGUES[G.leagueOf(p.xp)].icon}</span><span class="lv">${t('ui.level', { n: L })}</span><span class="lvs">${t('ui.levelShort', { n: L })}</span><span class="xpbar" aria-hidden="true"><i style="width:${Math.round(100 * (p.xp - a) / (b - a))}%"></i></span><span class="xp">${p.xp} XP</span>${p.streak.days ? `<span class="streak" title="${t('ui.streak')}">🔥 ${p.streak.days}</span>` : ''}`);
+        const L = G.level(p), [a, b] = G.levelRange(L);
+        const chip = h('button', { class: 'pchip', type: 'button', 'aria-label': t('ui.profileMenu') }, `<b>${esc(p.name)}</b><span class="lg" title="${t('league.' + G.LEAGUES[G.leagueOf(p.xp)].id)}">${G.LEAGUES[G.leagueOf(p.xp)].icon}</span><span class="lv">${t('ui.level', { n: L })}</span><span class="lvs">${t('ui.levelShort', { n: L })}</span><span class="xpbar" aria-hidden="true"><i style="width:${Math.max(0, Math.round(100 * (p.xp - a) / (b - a)))}%"></i></span><span class="xp">${p.xp} XP</span>${p.streak.days ? `<span class="streak" title="${t('ui.streak')}">🔥 ${p.streak.days}</span>` : ''}`);
         chip.onclick = () => App.go('profiles'); right.appendChild(chip);
       }
       const sel = h('select', { class: 'langsel', 'aria-label': t('ui.language') });
@@ -92,7 +92,9 @@
     confetti() { const c = h('div', { class: 'confetti', 'aria-hidden': 'true' }); for (let i = 0; i < 24; i++) { const s = h('i'); s.style.left = Math.random() * 100 + '%'; s.style.animationDelay = Math.random() * 0.3 + 's'; s.style.background = ['#ef3340', '#00a3e0', '#ffd23f', '#3bb273', '#7b3fa0'][i % 5]; c.appendChild(s); } document.body.appendChild(c); setTimeout(() => c.remove(), 1600); }
   };
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const stars = n => `<span class="stars" aria-label="${t('ui.stars', { n })}">${'★'.repeat(n)}<span class="off">${'★'.repeat(3 - n)}</span></span>`;
+  /* stars 4–6 of a topic are "super stars" (another colour) */
+  const stars = (n, m = 3) => `<span class="stars" aria-label="${t('ui.stars', { n, m })}">${Array.from({ length: m }, (_, i) => `<span class="${i >= n ? 'off' : i >= 3 ? 'sup' : 'on'}">★</span>`).join('')}</span>`;
+  const tstars = n => stars(n, G.MAXSTARS);
   const regionOf = sid => MQ.MAP.regions.find(r => r.stages.includes(sid));
 
   /* =================================================================== */
@@ -103,7 +105,7 @@
       main.appendChild(hero);
       main.appendChild(h('h2', {}, t('ui.whoPlays')));
       const grid = h('div', { class: 'profgrid' });
-      G.profiles().forEach(p => { const b = h('button', { class: 'prof', type: 'button' }, `${MQ.mascot(p.avatar, 84)}<b>${esc(p.name)}</b><small>${t('ui.level', { n: G.levelOf(p.xp) })} · ${p.xp} XP</small>`); b.onclick = () => { G.setActive(p.id); App.header(); App.go('map'); }; grid.appendChild(b); });
+      G.profiles().forEach(p => { const b = h('button', { class: 'prof', type: 'button' }, `${MQ.mascot(p.avatar, 84)}<b>${esc(p.name)}</b><small>${t('ui.level', { n: G.level(p) })} · ${p.xp} XP</small>`); b.onclick = () => { G.setActive(p.id); App.header(); App.go('map'); }; grid.appendChild(b); });
       const add = h('button', { class: 'prof add', type: 'button' }, `<span class="plus">+</span><b>${t('ui.newPlayer')}</b>`); add.onclick = () => App.go('newProfile'); grid.appendChild(add);
       main.appendChild(grid);
       main.appendChild(h('p', { class: 'privacy' }, t('ui.privacy')));
@@ -132,6 +134,8 @@
     map(main) {
       const p = G.active(); if (!p) return App.go('profiles');
       const q = G.quest(p);
+      // once per profile: explain the six stars to players who already had progress
+      if (!p.newsV3) { p.newsV3 = true; G.save(); if (p.xp > 0) setTimeout(() => App.modal(`${MQ.mascot(p.avatar, 90)}<h2>🌟 ${t('ui.newsV3Title')}</h2><p>${t('ui.newsV3')}</p>`, [{ label: t('ui.letsGo'), cls: 'primary' }]), 300); }
       const top = h('div', { class: 'maptop banner' });
       top.innerHTML = `<div class="hello">${MQ.mascot(p.avatar, 72)}<div><h1>${t('ui.hello', { n: esc(p.name) })}</h1><p>${t('ui.mapIntro')}</p></div></div>`;
       const qb = h('button', { class: 'quest ' + (q.done ? 'done' : ''), type: 'button' }, `<b>📜 ${t('ui.dailyQuest')}</b><span>${q.done ? t('ui.questDone') : t('ui.questProgress', { n: q.tasks.filter(k => k.n >= k.goal).length })}</span>`);
@@ -141,7 +145,7 @@
       const wrap = h('div', { class: 'mapwrap' });
       wrap.innerHTML = `<svg class="lux" viewBox="0 0 100 100" aria-hidden="true"><path d="M38 4 L58 2 L66 12 L62 22 L72 26 L80 36 L76 48 L84 58 L82 70 L74 80 L76 92 L60 98 L48 92 L36 96 L30 86 L22 78 L26 64 L20 52 L26 40 L22 28 L30 16 Z" class="land"/><path d="M76 48 Q86 66 74 80 Q80 90 76 92" class="river"/><path d="M40 8 Q46 30 50 44 Q54 60 60 98" class="road"/></svg>`;
       MQ.MAP.regions.forEach(r => {
-        const total = r.stages.length * 3, got = G.regionStars(p, r);
+        const total = r.stages.length * G.MAXSTARS, got = G.regionStars(p, r);
         const assigned = r.stages.some(s => p.assigned.includes(s));
         const b = h('button', { class: 'region r-' + r.theme, type: 'button', style: `left:${r.pos[0]}%;top:${r.pos[1]}%` }, `<span class="ricon" aria-hidden="true">${{ city: '🏙️', castle: '🏰', forest: '🌲', fair: '🎡' }[r.theme]}</span><b>${t('region.' + r.id)}</b><small>${t('domain.' + r.domain)}</small><span class="rprog"><i style="width:${Math.round(100 * got / total)}%"></i></span><small>★ ${got}/${total}</small>${assigned ? `<span class="flag" title="${t('ui.assigned')}">🚩</span>` : ''}`);
         b.onclick = () => App.go('region', { id: r.id }); wrap.appendChild(b);
@@ -172,7 +176,7 @@
       const grid = h('div', { class: 'summitgrid' });
       MQ.MAP.regions.forEach(rg => rg.stages.filter(s => all.includes(s)).forEach(s => {
         const ok = open.includes(s), n = G.stars(p, s);
-        const c = h('button', { type: 'button', class: 'summittopic' + (ok ? ' open' : '') }, `<span aria-hidden="true">${ok ? '🏔️' : '🔒'}</span> ${t('stage.' + s)} <small>${stars(n)}</small>`);
+        const c = h('button', { type: 'button', class: 'summittopic' + (ok ? ' open' : '') }, `<span aria-hidden="true">${ok ? '🏔️' : '🔒'}</span> ${t('stage.' + s)} <small>${tstars(n)}</small>`);
         c.onclick = () => { if (ok) { const st = G.stage(p, s); st.level = 5; st.auto = false; G.save(); App.go('play', { stage: s, mode: 'practice' }); } else App.toast('🔒 ' + t('ui.extremeLockedTopic', { s: { k: 'stage.' + s }, n: 3 - n })); };
         grid.appendChild(c);
       }));
@@ -229,7 +233,7 @@
       r.stages.forEach(sid => {
         const st = G.stage(p, sid), n = G.stars(p, sid), assigned = p.assigned.includes(sid);
         const c = h('div', { class: 'stage card' + (assigned ? ' assigned' : '') });
-        c.innerHTML = `<h3>${t('stage.' + sid)} ${assigned ? '🚩' : ''}</h3><p class="sdesc">${t('stage.' + sid + '.d')}</p>${stars(n)}<p class="nextstar">${nextStarText(p, sid)}</p><p class="small">${t('ui.levelNow', { l: { k: LEVEL_KEYS[st.level] } })} · ${t('ui.doneCount', { n: st.correct })}</p>`;
+        c.innerHTML = `<h3>${t('stage.' + sid)} ${assigned ? '🚩' : ''}</h3><p class="sdesc">${t('stage.' + sid + '.d')}</p>${tstars(n)}<p class="nextstar">${nextStarText(p, sid)}</p><p class="small">${t('ui.levelNow', { l: { k: LEVEL_KEYS[st.level] } })} · ${t('ui.doneCount', { n: st.correct })}</p>`;
         const row = h('div', { class: 'brow' });
         const play = h('button', { class: 'btn primary', type: 'button' }, '▶ ' + t('ui.practise')); play.onclick = () => App.go('play', { stage: sid, mode: 'practice' });
         const used = G.blitzUsedToday(p, sid); const blitz = h('button', { class: 'btn', type: 'button', title: used ? t('ui.timedDoneTitle') : t('ui.timedTitle') }, used ? '⏱ ' + t('ui.timedDone') : '⏱ ' + t('ui.timed')); blitz.disabled = used; blitz.onclick = () => { if (G.blitzUsedToday(p, sid)) { App.toast(t('ui.timedDoneTitle')); return; } App.go('play', { stage: sid, mode: 'blitz' }); };
@@ -246,7 +250,7 @@
 
     /* ---------------- avatar ---------------- */
     avatar(main, { first }) {
-      const p = G.active(); const L = G.levelOf(p.xp); const A = MQ.MAP.avatar;
+      const p = G.active(); const L = G.level(p); const A = MQ.MAP.avatar;
       main.appendChild(h('h1', {}, t('ui.avatarTitle')));
       const prev = h('div', { class: 'avprev' }); const render = () => { prev.innerHTML = MQ.mascot(p.avatar, 160) + `<p>${t('ui.mascotIntro')}</p>`; };
       render(); main.appendChild(prev);
@@ -256,8 +260,8 @@
         const row = h('div', { class: 'avrow' });
         A[kind].forEach(it => {
           const locked = !G.unlocked(p, it);
-          const need = it.league != null ? t('ui.unlockLeague', { l: { k: 'league.' + G.LEAGUES[it.league].id } }) : t('ui.unlockAt', { n: it.lvl });
-          const short = it.league != null ? G.LEAGUES[it.league].icon : t('ui.levelShort', { n: it.lvl });
+          const need = it.league != null ? t('ui.unlockLeague', { l: { k: 'league.' + G.LEAGUES[it.league].id } }) : it.stars != null ? t('ui.unlockStars', { n: it.stars, m: G.totalStars(p) }) : t('ui.unlockAt', { n: it.lvl });
+          const short = it.league != null ? G.LEAGUES[it.league].icon : it.stars != null ? '★' + it.stars : t('ui.levelShort', { n: it.lvl });
           const b = h('button', { type: 'button', class: 'avopt' + (cur(kind) === it.id ? ' sel' : '') + (locked ? ' locked' : ''), 'aria-pressed': cur(kind) === it.id, 'aria-label': t('av.' + kind + '.' + it.id) + (locked ? ' — ' + need : '') });
           b.innerHTML = MQ.mascot({ ...p.avatar, [kind]: it.id }, 56) + `<small>${locked ? '🔒 ' + short : t('av.' + kind + '.' + it.id)}</small>`;
           b.onclick = () => { if (locked) { App.toast(need); return; } p.avatar[kind] = it.id; G.save(); App.header(); App.go('avatar', { first }); };
@@ -524,7 +528,7 @@
       { const ns = this.main.querySelector('.playbar .nextstar'); if (ns) ns.innerHTML = nextStarText(this.p, this.stage); }
       if (ev.starUp) { MQ.audio.play('level'); App.toast('🌟 ' + t('star.won' + ev.starUp, { s: { k: 'stage.' + this.stage } })); }
       if (ev.extremeOpened) setTimeout(() => App.toast('🏔️ ' + t('ui.extremeOpened', { s: { k: 'stage.' + this.stage } })), 2800);
-      if (ev.levelUp) { MQ.audio.play('level'); App.toast(`⭐ ${t('ui.levelUp', { n: G.levelOf(this.p.xp) })}`); }
+      if (ev.levelUp) { MQ.audio.play('level'); App.toast(`⭐ ${t('ui.levelUp', { n: G.level(this.p) })}`); }
       ev.newBadges.forEach(b => { MQ.audio.play('badge'); const bt = MQ.badgeText(b); App.toast(`🏅 ${t('ui.newBadge', { b: { raw: bt.name + (bt.tierName ? ' · ' + bt.tierName : '') } })}`); });
       { const big = ev.newBadges.map(b => MQ.badgeText(b)).filter(bt => bt.tier >= 3).sort((a, b) => b.tier - a.tier)[0]; if (big) setTimeout(() => { App.confetti(); App.modal(`<div class="badgeinfo">${MQ.medal(big.tier, big.icon, 140)}<h2>${big.name} <small>· ${big.tierName}</small></h2><p>${big.desc}</p></div>`, [{ label: t('ui.letsGo'), cls: 'primary' }]); }, 600); }
       if (ev.questDone) App.toast('📜 ' + t('ui.questDone'));
@@ -542,7 +546,7 @@
       const ex = this.ex; const fb = this.fbEl; fb.className = 'feedback ' + r.kind; let html = '';
       if (r.kind === 'formal') html = `<p>${tm(r.fb)}</p>`;
       if (r.kind === 'retry') html = `${MQ.mascot(this.p.avatar, 56, 'think')}<div><p><b>${t('ui.notYet')}</b> ${r.fb ? tm(r.fb) : t('ui.tryAgain')}</p><p class="small">${t('ui.retryHint')}</p></div>`;
-      if (r.kind === 'ok') html = `${MQ.mascot(this.p.avatar, 56)}<div><p><b>${t(r.praise)}</b> <span class="xpgain">+${r.ev ? r.ev.xp : (r.xp || 0)} XP</span>${r.ev ? ` <span class="xpnext">${t('ui.xpToLevel', { n: G.levelRange(G.levelOf(this.p.xp))[1] - this.p.xp, l: G.levelOf(this.p.xp) + 1 })}</span>` : ''}</p><p class="explain"><b>${t('ui.why')}</b> ${tm(ex.explain)}</p></div>`;
+      if (r.kind === 'ok') html = `${MQ.mascot(this.p.avatar, 56)}<div><p><b>${t(r.praise)}</b> <span class="xpgain">+${r.ev ? r.ev.xp : (r.xp || 0)} XP</span>${r.ev ? ` <span class="xpnext">${t('ui.xpToLevel', { n: G.levelRange(G.level(this.p))[1] - this.p.xp, l: G.level(this.p) + 1 })}</span>` : ''}</p><p class="explain"><b>${t('ui.why')}</b> ${tm(ex.explain)}</p></div>`;
       if (r.kind === 'solution') html = `${MQ.mascot(this.p.avatar, 56, 'think')}<div><p><b>${t('ui.letsSee')}</b> ${r.fb ? tm(r.fb) : ''}</p><p><b>${t('ui.answerIs')}</b> ${tm(ex.answer)}</p><p class="explain"><b>${t('ui.why')}</b> ${tm(ex.explain)}</p><p class="small">${t('ui.noProblem')}</p></div>`;
       fb.innerHTML = html;
     }
