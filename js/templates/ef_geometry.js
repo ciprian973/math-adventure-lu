@@ -650,15 +650,21 @@
         return { prompt: m('t.formula.q2', { n: m('t.formula.n.' + ask) }), widget: { type: 'mc', options: r.shuffle(opts.map(k => ({ label: m(k.startsWith('f.') ? k : 'f.' + k), correct: k === ask }))) }, answer: m('f.' + ask), explain: m('t.formula.ex.' + ask) };
       }
       if (L === 3) {
-        // one mistake, in the idea (line 1) or in the calculation (line 2); line 3 only states the result of line 2
-        const w = r.int(4, 12), h = r.intExcept(2, 9, [w]); const P = 2 * (w + h);
-        const v = r.pick(['area', 'half', 'idea']);
-        const wrongStep = v === 'idea' ? 0 : 1, res = v === 'half' ? w + h : w * h;
-        const steps = [m(v === 'idea' ? 't.formula.s1w' : 't.formula.s1'), m(v === 'half' ? 't.formula.s2h' : 't.formula.s2', { w, h, x: res }), m('t.formula.s3', { x: { unit: 'cm', val: new MQ.Q(res) } })];
-        const stepFb = v === 'idea' ? { 1: m('t.formula.m.followsIdea'), 2: m('t.formula.m.concl') } : { 2: m('t.formula.m.concl') };
-        return { prompt: m('t.formula.q3', { n: names(r, 1)[0], w: cm(w), h: cm(h) }), widget: { type: 'mistake', steps, wrongStep, stepFb, fields: [field('fix', new MQ.Q(P), { unit: 'cm', label: m('t.formula.fix') })] },
-          answer: m('t.formula.ans3', { i: wrongStep + 1, x: cm(P) }), explain: m('t.formula.ex3' + { area: 'a', half: 'b', idea: 'c' }[v], { w, h, x: P, s: w + h, y: res }),
-          wrong: [{ step: 2, fields: { fix: P + ' cm' } }].concat(v === 'idea' ? [{ step: 1, fields: { fix: P + ' cm' } }] : []) };
+        // three lines, each one a statement that can be checked on its own: exactly ONE of them is false
+        const w = r.int(4, 12), h = r.int(2, Math.min(9, w - 1)); const P = 2 * (w + h);          // the length is the longer side
+        const v = r.pick(['idea', 'area', 'half', 'calc', 'paren']);
+        const wrongStep = v === 'idea' ? 0 : v === 'area' || v === 'half' ? 1 : 2;
+        const sgn = r.pick([2, -2, 10, -10]); const bad = v === 'paren' ? 2 * w + h : P + sgn;
+        const calc = (x, mid) => ({ html: lang => MQ.exprToString([2, '*', '(', w, '+', h, ')'], lang) + ' = ' + (mid ? MQ.exprToString(mid, lang) + ' = ' : '') + MQ.fmtNum(x, lang) + ' cm' });
+        const steps = [
+          m(v === 'idea' ? 't.formula.s1w' : 't.formula.s1'),
+          m(v === 'area' ? 't.formula.f.area' : v === 'half' ? 't.formula.f.half' : 't.formula.f.ok'),
+          m('t.formula.s3calc', { c: v === 'calc' ? calc(bad, [2, '*', w + h]) : v === 'paren' ? calc(bad, [2, '*', w, '+', h]) : calc(P, [2, '*', w + h]) })
+        ];
+        return { prompt: m('t.formula.q3', { n: names(r, 1)[0], w: cm(w), h: cm(h) }), widget: { type: 'mistake', steps, wrongStep, fields: [field('fix', new MQ.Q(P), { unit: 'cm', label: m('t.formula.fix') })] },
+          answer: m('t.formula.ans3', { i: wrongStep + 1, x: cm(P) }),
+          explain: m('t.formula.ex3' + v, { w, h, x: P, s: w + h, y: bad, z: w * h }),
+          wrong: [{ step: (wrongStep + 1) % 3, fields: { fix: P + ' cm' } }, { step: (wrongStep + 2) % 3, fields: { fix: P + ' cm' } }] };
       }
       const st = r.pick([['e1', true], ['e2', false], ['e3', true], ['e4', false]]);
       return { prompt: m('t.formula.q4', { s: m('t.formula.' + st[0]) }), widget: { type: 'tf', truth: st[1], reasons: r.shuffle([{ label: m('t.formula.r.' + st[0]), correct: true }, { label: m('t.formula.r.w1'), correct: false }, { label: m('t.formula.r.w2'), correct: false }]) }, answer: m(st[1] ? 'c.true' : 'c.false'), explain: m('t.formula.r.' + st[0]) };
