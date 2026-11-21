@@ -21,6 +21,10 @@ For every one of the 97 templates and each of its 4 levels the self-test generat
 
 Each child dresses up their own lion: boy or girl, fur colour, accessories, a frame and a background. Most items unlock with the player level (some only at level 20–30, so they take real effort); seasonal frames (winter, spring, summer, autumn, Christmas, Halloween, or "season of today", which changes by itself with the calendar), Luxembourg National Day and Schueberfouer frames, and special frames for each league. Leagues (Bronze, Silver, Gold, Platinum, Diamond, Legend) follow the XP a child has collected; they show personal progress only — there is no ranking against other children. The lion also sits on the read-aloud button.
 
+**Badges** come in 24 families (the four map regions, 14 topic groups covering all 27 topics, and effort: correct answers, error-free streaks, days in a row, daily quests, level-4 work, perseverance, the 2-minute challenge, exercise sets, exploring, region challenges), each with five tiers drawn as medals: I bronze with ribbon, II silver with oak leaves, III gold with laurels, Supreme (diamond, laurels and crossed swords) and Maximum (legendary crown) — 121 badges in all, the top tiers taking months.
+
+**The 2-minute challenge** can be played once a day per topic; only correct answers count, and wrong answers give no XP anywhere in the app. A wrong answer given within a few seconds shows a gentle reminder to read the exercise first.
+
 ## Teachers and parents
 
 The 🎓 button opens a PIN-protected dashboard (you choose the PIN the first time): overview per pupil, mastery per Plan d'études objective in the official wording, frequent errors (the misconception messages the app showed most often), topics assigned to a pupil (marked with a flag on the map and fed into the daily quest), CSV export (semicolon-separated, opens in Excel) and a PDF report (through the browser's print dialog → "Save as PDF"), the curriculum coverage table and settings (multiplication sign × or the · used in MENJE documents, PIN change, delete all data).

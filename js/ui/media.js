@@ -120,4 +120,32 @@
       <circle cx="42" cy="52" r="3.2" fill="#222"/><circle cx="58" cy="52" r="3.2" fill="#222"/><circle cx="43" cy="51" r="1" fill="#fff"/><circle cx="59" cy="51" r="1" fill="#fff"/>${lashes}
       <ellipse cx="50" cy="61" rx="4.5" ry="3.2" fill="#7a3b2e"/>${mouth}<circle cx="37" cy="62" r="3" fill="#ff9e9e" opacity="${girl ? '.85' : '.6'}"/><circle cx="63" cy="62" r="3" fill="#ff9e9e" opacity="${girl ? '.85' : '.6'}"/>${acc}${frame}</svg>`;
   };
+
+  /* ---------------- medals for badges (5 tiers) ----------------
+   * 1 bronze + ribbon · 2 silver + oak leaves · 3 gold + laurels
+   * 4 supreme: diamond + laurels + crossed swords + star · 5 maximum: rays, crown, everything */
+  const METAL = { 1: ['#e0a36a', '#a0612b', '#6e3d14'], 2: ['#eef2f6', '#b6c0ca', '#6f7b87'], 3: ['#ffe27a', '#e5b21c', '#9a6f00'], 4: ['#d8f4ff', '#7fd0f5', '#2a86b8'], 5: ['#fff3b0', '#f0b400', '#8e44ad'] };
+  const RIBBON = { 1: ['#c8102e', '#8f0b20'], 2: ['#1f78b4', '#13507a'], 3: ['#ef3340', '#00a3e0'], 4: ['#6a3d9a', '#43246a'], 5: ['#8e44ad', '#f0b400'] };
+  const leaf = (x, y, rot, c, s = 1) => `<ellipse cx="${x}" cy="${y}" rx="${4.2 * s}" ry="${1.9 * s}" transform="rotate(${rot} ${x} ${y})" fill="${c}"/>`;
+  const laurel = (c1, c2) => { let o = ''; for (let k = 0; k < 8; k++) { const deg = 105 + k * 19, a = deg * Math.PI / 180, x = 60 + 39 * Math.cos(a), y = 62 + 39 * Math.sin(a); const rot = deg + 90 - 25; o += leaf(x.toFixed(1), y.toFixed(1), rot.toFixed(0), k % 2 ? c1 : c2, 1.25); o += leaf((120 - x).toFixed(1), y.toFixed(1), (180 - rot).toFixed(0), k % 2 ? c1 : c2, 1.25); } return o; };
+  const oak = () => { const lobe = (x, y, rot) => `<path transform="translate(${x} ${y}) rotate(${rot})" d="M0 0 q-3 -4 0 -7 q-4 -2 -1 -6 q-4 -1 -1 -6 q3 1 3 4 q3 -2 4 2 q-3 2 -1 4 q3 1 1 4 q-2 1 -2 1z" fill="#6b8e23" stroke="#4b6418" stroke-width=".6"/>`;
+    return lobe(24, 82, -35) + lobe(18, 62, -8) + lobe(24, 42, 20) + lobe(96, 82, 35) + lobe(102, 62, 8) + lobe(96, 42, -20) + '<circle cx="28" cy="92" r="3" fill="#b5651d"/><rect x="25.5" y="87.5" width="5" height="3" rx="1.2" fill="#6e3d14"/><circle cx="92" cy="92" r="3" fill="#b5651d"/><rect x="89.5" y="87.5" width="5" height="3" rx="1.2" fill="#6e3d14"/>'; };
+  const swords = () => { const sw = flip => `<g transform="translate(60 62) rotate(${flip ? 45 : -45})"><rect x="-2.2" y="-54" width="4.4" height="86" rx="1" fill="#e8eef2" stroke="#7d8791" stroke-width=".8"/><path d="M-2.2 -54 l2.2 -7 l2.2 7z" fill="#e8eef2" stroke="#7d8791" stroke-width=".8"/><rect x="-10" y="32" width="20" height="4.5" rx="2" fill="#b8860b"/><rect x="-2.2" y="36.5" width="4.4" height="10" fill="#6e3d14"/><circle cy="48.5" r="3.2" fill="#b8860b"/></g>`; return sw(0) + sw(1); };
+  const rays = () => Array.from({ length: 16 }, (_, k) => { const a = k * Math.PI / 8; return `<path d="M60 60 L${(60 + 58 * Math.cos(a - 0.08)).toFixed(1)} ${(60 + 58 * Math.sin(a - 0.08)).toFixed(1)} L${(60 + 58 * Math.cos(a + 0.08)).toFixed(1)} ${(60 + 58 * Math.sin(a + 0.08)).toFixed(1)}z" fill="#ffd54f" opacity=".55"/>`; }).join('');
+  MQ.medal = (tier = 1, icon = '🏅', size = 72, locked = false) => {
+    const [hi, mid, lo] = METAL[tier], [r1, r2] = RIBBON[tier], gid = 'mg' + tier;
+    const ribbon = `<path d="M44 84 l-12 34 l10 -4 l6 9 l10 -30z" fill="${r1}"/><path d="M76 84 l12 34 l-10 -4 l-6 9 l-10 -30z" fill="${r2}"/>`;
+    const mark = { 1: 'I', 2: 'II', 3: 'III', 4: '★', 5: '♛' }[tier];
+    let s = `<defs><radialGradient id="${gid}" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="${hi}"/><stop offset=".6" stop-color="${mid}"/><stop offset="1" stop-color="${lo}"/></radialGradient></defs>`;
+    if (tier >= 5) s += rays();
+    if (tier >= 4) s += swords();
+    s += ribbon;
+    if (tier === 2) s += oak();
+    if (tier >= 3) s += laurel(tier >= 5 ? '#e5b21c' : '#2e7d32', tier >= 5 ? '#b8860b' : '#43a047');
+    s += `<circle cx="60" cy="60" r="31" fill="url(#${gid})" stroke="${lo}" stroke-width="2.5"/><circle cx="60" cy="60" r="25" fill="none" stroke="${hi}" stroke-width="1.5" opacity=".8"/>`;
+    s += `<text x="60" y="66" font-size="24" text-anchor="middle">${icon}</text><text x="60" y="86" font-size="11" font-weight="800" text-anchor="middle" fill="${lo}">${mark}</text>`;
+    if (tier >= 4) s += `<path d="M60 14 l3.5 7 l7.7 1.1 l-5.6 5.4 l1.3 7.6 l-6.9 -3.6 l-6.9 3.6 l1.3 -7.6 l-5.6 -5.4 l7.7 -1.1z" fill="${tier >= 5 ? '#f0b400' : '#7fd0f5'}" stroke="${tier >= 5 ? '#9a6f00' : '#2a86b8'}" stroke-width="1"/>`;
+    if (tier >= 5) s += '<path d="M44 12 l5 -9 l6 6 l5 -8 l5 8 l6 -6 l5 9z" fill="#f0b400" stroke="#9a6f00" stroke-width="1" transform="translate(0 -2)"/>';
+    return `<svg class="medal t${tier}${locked ? ' locked' : ''}" viewBox="0 0 120 125" width="${size}" height="${Math.round(size * 125 / 120)}" aria-hidden="true">${s}</svg>`;
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

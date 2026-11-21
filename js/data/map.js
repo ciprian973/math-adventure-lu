@@ -19,29 +19,7 @@
         stages: ['rp_analyse', 'rp_solve', 'rp_prop', 'rp_open', 'rp_check'] }
     ],
     // badges tied to real skills. test(p, G) gets the profile and the game helpers
-    badges: [
-      { id: 'firstStep', icon: '👣', test: p => p.stats.correct >= 1 },
-      { id: 'fractionMaster', icon: '🍕', test: (p, G) => ['no_frac', 'no_equiv'].every(s => G.stars(p, s) >= 3) },
-      { id: 'decimalDetective', icon: '🔍', test: (p, G) => G.stars(p, 'no_dec') >= 3 },
-      { id: 'bigNumbers', icon: '🏰', test: (p, G) => G.stars(p, 'no_big') >= 2 },
-      { id: 'calcChampion', icon: '🧮', test: (p, G) => ['no_calc', 'no_ops'].every(s => G.stars(p, s) >= 2) },
-      { id: 'angleAce', icon: '📐', test: (p, G) => G.stars(p, 'ef_angles') >= 2 },
-      { id: 'areaArchitect', icon: '🏗️', test: (p, G) => ['ef_area', 'ef_volume'].every(s => G.stars(p, s) >= 2) },
-      { id: 'mirrorMaster', icon: '🪞', test: (p, G) => G.stars(p, 'ef_sym') >= 2 },
-      { id: 'timeKeeper', icon: '⏰', test: (p, G) => G.stars(p, 'gm_time') >= 2 },
-      { id: 'moneyWizard', icon: '💶', test: (p, G) => G.stars(p, 'gm_money') >= 2 },
-      { id: 'dataExplorer', icon: '📊', test: (p, G) => ['no_data', 'gm_data'].every(s => G.stars(p, s) >= 2) },
-      { id: 'problemSolver', icon: '🧩', test: (p, G) => ['rp_solve', 'rp_prop', 'rp_open'].every(s => G.stars(p, s) >= 2) },
-      { id: 'detective', icon: '🕵️', test: (p, G) => G.stars(p, 'rp_check') >= 2 },
-      { id: 'bossNO', icon: '👑', test: p => (p.boss.NO || 0) >= 2 },
-      { id: 'bossEF', icon: '🛡️', test: p => (p.boss.EF || 0) >= 2 },
-      { id: 'bossGM', icon: '🌲', test: p => (p.boss.GM || 0) >= 2 },
-      { id: 'bossRP', icon: '🎡', test: p => (p.boss.RP || 0) >= 2 },
-      { id: 'noHints10', icon: '💡', test: p => (p.stats.noHintStreakBest || 0) >= 10 },
-      { id: 'daily5', icon: '📅', test: p => (p.stats.questsDone || 0) >= 5 },
-      { id: 'explorer', icon: '🧭', test: (p, G) => MQ.MAP.regions.every(r => r.stages.some(s => (p.stages[s] || {}).attempts > 0)) },
-      { id: 'persistent', icon: '💪', test: p => (p.stats.retrySuccess || 0) >= 10 }
-    ],
+    // badges: see js/data/badges.js (families with five tiers)
     // avatar options (the mascot is Léo, a young red lion from the Luxembourg coat of arms)
     avatar: {
       // lock rules: lvl = player level needed; league = index in MQ.game.LEAGUES needed

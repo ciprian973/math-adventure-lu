@@ -201,7 +201,7 @@
         c.innerHTML = `<h3>${t('stage.' + sid)} ${assigned ? '🚩' : ''}</h3><p class="sdesc">${t('stage.' + sid + '.d')}</p>${stars(n)}<p class="small">${t('ui.levelNow', { l: { k: LEVEL_KEYS[st.level] } })} · ${t('ui.doneCount', { n: st.correct })}</p>`;
         const row = h('div', { class: 'brow' });
         const play = h('button', { class: 'btn primary', type: 'button' }, '▶ ' + t('ui.practise')); play.onclick = () => App.go('play', { stage: sid, mode: 'practice' });
-        const blitz = h('button', { class: 'btn', type: 'button' }, '⏱ ' + t('ui.timed')); blitz.onclick = () => App.go('play', { stage: sid, mode: 'blitz' });
+        const used = G.blitzUsedToday(p, sid); const blitz = h('button', { class: 'btn', type: 'button', title: used ? t('ui.timedDoneTitle') : t('ui.timedTitle') }, used ? '⏱ ' + t('ui.timedDone') : '⏱ ' + t('ui.timed')); blitz.disabled = used; blitz.onclick = () => { if (G.blitzUsedToday(p, sid)) { App.toast(t('ui.timedDoneTitle')); return; } App.go('play', { stage: sid, mode: 'blitz' }); };
         row.append(play, blitz); c.appendChild(row); list.appendChild(c);
       });
       const boss = h('div', { class: 'stage card boss' });
@@ -255,10 +255,21 @@
     /* ---------------- badges ---------------- */
     badges(main) {
       const p = G.active();
-      main.appendChild(h('h1', {}, t('ui.badges')));
-      const grid = h('div', { class: 'badgegrid' });
-      MQ.MAP.badges.forEach(b => { const has = p.badges.includes(b.id); grid.appendChild(h('div', { class: 'badge card' + (has ? '' : ' off') }, `<span class="bicon" aria-hidden="true">${has ? b.icon : '❔'}</span><b>${t('badge.' + b.id)}</b><small>${t('badge.' + b.id + '.d')}</small>`)); });
-      main.appendChild(grid);
+      main.appendChild(h('h1', {}, '🏅 ' + t('ui.badges')));
+      const total = MQ.MAP.badges.length, got = MQ.MAP.badges.filter(b => p.badges.includes(b.id)).length;
+      main.appendChild(h('p', {}, t('ui.badgeCount', { n: got, m: total }) + ' ' + t('ui.badgeTiers')));
+      const show = id => { const bt = MQ.badgeText(id); const has = p.badges.includes(id); App.modal(`<div class="badgeinfo">${MQ.medal(bt.tier, bt.icon, 120, !has)}<h2>${bt.name}${bt.tierName ? ` <small>· ${bt.tierName}</small>` : ''}</h2><p>${bt.desc}</p><p class="small">${has ? '✅ ' + t('ui.badgeHave') : '🔒 ' + t('ui.badgeNotYet')}</p></div>`, [{ label: t('ui.ok'), cls: 'primary' }]); };
+      MQ.MAP.BADGE_CATS.forEach(cat => {
+        main.appendChild(h('h2', {}, t('badgecat.' + cat)));
+        const grid = h('div', { class: 'famgrid' });
+        MQ.MAP.badgeFamilies.filter(f => f.cat === cat).forEach(f => {
+          const row = h('div', { class: 'card fam' }); row.appendChild(h('h3', {}, `${f.icon} ${t(f.nameKey)}`));
+          const medals = h('div', { class: 'medals' });
+          for (let tr = 1; tr <= 5; tr++) { const id = f.id + ':' + tr, has = p.badges.includes(id); const b = h('button', { type: 'button', class: 'medalbtn' + (has ? ' has' : ''), 'aria-label': `${t(f.nameKey)} · ${t('badge.tier.' + tr)}${has ? '' : ' — ' + t('ui.badgeNotYet')}` }, MQ.medal(tr, f.icon, 58, !has) + `<small>${t('badge.tierShort.' + tr)}</small>`); b.onclick = () => show(id); medals.appendChild(b); }
+          row.appendChild(medals); grid.appendChild(row);
+        });
+        main.appendChild(grid);
+      });
       const back = h('button', { class: 'btn', type: 'button' }, '← ' + t('ui.map')); back.onclick = () => App.go('map'); main.appendChild(back);
     },
 
@@ -292,6 +303,7 @@
   /* =================================================================== */
   /* Player: practice, boss and timed challenge                           */
   /* =================================================================== */
+  const BLITZ_MS = 120000;   // timed challenge: 2 minutes, once a day per topic
   class Player {
     constructor(main, params, keep) {
       this.main = main; this.p = G.active(); this.params = params; this.mode = params.mode || 'practice';
@@ -299,7 +311,7 @@
       else {
         this.recent = []; this.score = 0; this.count = 0;
         if (this.mode === 'boss') { this.region = MQ.MAP.regions.find(r => r.id === params.region); this.queue = MQ.RNG(Date.now() & 0xffffff).shuffle(this.region.stages.concat(this.region.stages).slice(0, 8)); this.bossTotal = this.queue.length; }
-        if (this.mode === 'blitz') { this.deadline = null; this.blitzLevel = G.stage(this.p, params.stage).level; }
+        if (this.mode === 'blitz') { this.deadline = null; this.blitzLevel = G.stage(this.p, params.stage).level; G.markBlitz(this.p, params.stage); }
         this.items = []; this.pos = -1;
         if (this.mode === 'set') {
           this.run = MQ.sets.run(this.p, params.key);
@@ -353,7 +365,7 @@
       if (!first) this.render();
     }
     startTimer() {
-      this.deadline = this.deadline || Date.now() + 60000;
+      this.deadline = this.deadline || Date.now() + BLITZ_MS;
       this.timer = setInterval(() => { const left = Math.max(0, Math.ceil((this.deadline - Date.now()) / 1000)); const el = this.main.querySelector('.timer'); if (el) el.textContent = '⏱ ' + left + ' s'; if (left <= 10 && left > 0) MQ.audio.play('tick'); if (left <= 0) { this.stop(); this.finishBlitz(); } }, 1000);
     }
     render() {
@@ -371,7 +383,7 @@
         const auto = h('label', { class: 'auto' }, `<input type="checkbox" ${st.auto ? 'checked' : ''}> ${t('ui.autoLevel')}`); auto.querySelector('input').onchange = e => { st.auto = e.target.checked; G.save(); };
         lv.appendChild(auto); bar.appendChild(lv);
       }
-      if (this.mode === 'blitz') bar.appendChild(h('div', { class: 'timer', 'aria-live': 'off' }, '⏱ ' + Math.max(0, Math.ceil(((this.deadline || Date.now() + 60000) - Date.now()) / 1000)) + ' s'));
+      if (this.mode === 'blitz') bar.appendChild(h('div', { class: 'timer', 'aria-live': 'off' }, '⏱ ' + Math.max(0, Math.ceil(((this.deadline || Date.now() + BLITZ_MS) - Date.now()) / 1000)) + ' s'));
       if (this.mode === 'blitz' || this.mode === 'boss') bar.appendChild(h('div', { class: 'score' }, t('ui.score', { n: this.score })));
       m.appendChild(bar);
       if (this.finished) return this.mode === 'boss' ? this.finishBoss(true) : this.finishBlitz(true);
@@ -428,6 +440,7 @@
         this.lastRes = { kind: 'formal', fb: res.fb }; this.showFeedback(this.lastRes); return;
       }
       this.tries++;
+      if (!res.correct && Date.now() - this.t0 < 4000 && (!this.lastReadNote || Date.now() - this.lastReadNote > 60000)) { this.lastReadNote = Date.now(); App.toast('📖 ' + t('ui.readFirst')); }
       const maxTries = this.mode === 'blitz' ? 1 : 2;
       if (res.correct) { this.finish(true, res); }
       else if (this.tries >= maxTries) { this.finish(false, res); }
@@ -455,7 +468,8 @@
       this.showFeedback(this.lastRes); this.saveCur(); this.updateButtons(); App.header();
       if (ev.leagueUp) setTimeout(() => { const lg = G.LEAGUES[ev.leagueUp]; MQ.audio.play('badge'); App.confetti(); App.modal(`<div class="leagueup"><div class="lgicon">${lg.icon}</div><h2>${t('ui.leagueUpTitle')}</h2><p>${t('ui.leagueUp', { l: { k: 'league.' + lg.id } })}</p>${MQ.MAP.avatar.frame.some(f => f.league === ev.leagueUp) ? `<p class="small">${t('ui.leagueFrame')}</p>` : ''}</div>`, [{ label: t('ui.letsGo'), cls: 'primary' }]); }, 400);
       if (ev.levelUp) { MQ.audio.play('level'); App.toast(`⭐ ${t('ui.levelUp', { n: G.levelOf(this.p.xp) })}`); }
-      ev.newBadges.forEach(b => { MQ.audio.play('badge'); App.toast(`🏅 ${t('ui.newBadge', { b: { k: 'badge.' + b } })}`); });
+      ev.newBadges.forEach(b => { MQ.audio.play('badge'); const bt = MQ.badgeText(b); App.toast(`🏅 ${t('ui.newBadge', { b: { raw: bt.name + (bt.tierName ? ' · ' + bt.tierName : '') } })}`); });
+      { const big = ev.newBadges.map(b => MQ.badgeText(b)).filter(bt => bt.tier >= 3).sort((a, b) => b.tier - a.tier)[0]; if (big) setTimeout(() => { App.confetti(); App.modal(`<div class="badgeinfo">${MQ.medal(big.tier, big.icon, 140)}<h2>${big.name} <small>· ${big.tierName}</small></h2><p>${big.desc}</p></div>`, [{ label: t('ui.letsGo'), cls: 'primary' }]); }, 600); }
       if (ev.questDone) App.toast('📜 ' + t('ui.questDone'));
       if (this.mode === 'blitz') { setTimeout(() => { if (!this.finished && Date.now() < this.deadline) this.advance(); }, correct ? 500 : 1400); }
       if (ev.suggestUp && this.mode === 'practice') setTimeout(() => App._player === this && App.modal(`${MQ.mascot(this.p.avatar, 90)}<h2>${t('ui.suggestUpTitle')}</h2><p>${t('ui.suggestUp', { l: { k: LEVEL_KEYS[this.ex.level + 1] } })}</p>`, [{ label: t('ui.yesHarder'), cls: 'primary', fn: () => { const st = G.stage(this.p, this.stage); st.level = Math.min(4, this.ex.level + 1); st.recent = []; G.save(); if (App._player === this) { App.toast('⬆️ ' + t('ui.levelNow', { l: { k: LEVEL_KEYS[st.level] } })); this.next(false, true); } } }, { label: t('ui.stayHere') }]), 700);
@@ -500,6 +514,7 @@
     finishSet() {
       this.main.querySelector('.excard') && this.main.querySelector('.excard').remove();
       const sm = MQ.sets.summary(this.run); if (sm.correct === sm.n) { MQ.audio.play('badge'); App.confetti(); }
+      const counted = this.p.setsCounted || (this.p.setsCounted = []); if (sm.complete && sm.correct >= 0.8 * sm.n && !counted.includes(this.run.key)) { counted.push(this.run.key); this.p.stats.setsDone = (this.p.stats.setsDone || 0) + 1; G.checkBadges(this.p).forEach(b => { const bt = MQ.badgeText(b); App.toast(`🏅 ${t('ui.newBadge', { b: { raw: bt.name + (bt.tierName ? ' · ' + bt.tierName : '') } })}`); }); G.save(); }
       const c = h('section', { class: 'excard result' }, `${MQ.mascot(this.p.avatar, 110)}<h2>${t(sm.complete ? 'ui.setDone' : 'ui.setNotDone')}</h2><p>${t('ui.setScore', { a: sm.correct, b: sm.n })}</p><p class="small">${t('ui.setDetail', { f: sm.first, l: sm.later, w: sm.wrong })}${sm.skipped ? ' · ' + t('ui.setSkipped', { s: sm.skipped }) : ''}</p>${sm.wrong ? `<p>${t('ui.setRedoHint')}</p>` : ''}${sm.skipped ? `<p>${t('ui.setSkipHint')}</p>` : ''}`);
       const row = h('div', { class: 'brow' });
       const back = h('button', { class: 'btn primary', type: 'button' }, '📚 ' + t('ui.sets')); back.onclick = () => App.go('sets');
@@ -509,7 +524,7 @@
     updateNavOnly() { if (this.navEl) this.navEl.querySelectorAll('[data-i]').forEach(b => { const it = this.items[+b.dataset.i]; b.className = 'navdot' + (it.done ? (it.correct ? ' ok' : ' bad') : (it.skipped ? ' skipped' : '')); }); }
     finishBoss(rerender) {
       this.finished = true; const sc = this.score, n = this.bossTotal; const st = sc >= n ? 3 : sc >= n - 2 ? 2 : sc >= n / 2 ? 1 : 0;
-      if (!rerender) { this.p.boss[this.region.id] = Math.max(this.p.boss[this.region.id] || 0, st); G.checkBadges(this.p).forEach(b => App.toast(`🏅 ${t('ui.newBadge', { b: { k: 'badge.' + b } })}`)); G.save(); }
+      if (!rerender) { this.p.boss[this.region.id] = Math.max(this.p.boss[this.region.id] || 0, st); G.checkBadges(this.p).forEach(b => { const bt = MQ.badgeText(b); App.toast(`🏅 ${t('ui.newBadge', { b: { raw: bt.name + (bt.tierName ? ' · ' + bt.tierName : '') } })}`); }); G.save(); }
       if (st >= 2) { MQ.audio.play('badge'); App.confetti(); }
       this.main.querySelector('.excard') && this.main.querySelector('.excard').remove();
       const c = h('section', { class: 'excard result' }, `${MQ.mascot(this.p.avatar, 110)}<h2>${t(st >= 2 ? 'ui.bossWon' : 'ui.bossTry')}</h2><p>${t('ui.bossScore', { a: sc, b: n })}</p>${stars(st)}`);

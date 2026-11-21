@@ -17,8 +17,13 @@
     load() {
       let d = null; try { d = JSON.parse(store.getItem(KEY)); } catch (e) { d = null; }
       if (!d || d.v !== 1) d = { v: 1, profiles: [], active: null, settings: { lang: null, mute: false, dyslexia: false, mulSign: '×', pinHash: null, textScale: 1, rate: 0.95, contrast: false } };
-      G.data = d; return d;
+      G.data = d;
+      // badges moved to families with five tiers: drop old single badges, award silently what is earned now
+      d.profiles.forEach(p => { if (!p.badgesV2) { p.badges = (p.badges || []).filter(b => b === 'firstStep' || b.includes(':')); p.badgesV2 = true; } G.checkBadges(p); });
+      return d;
     },
+    blitzUsedToday(p, sid) { return ((p.blitzDay || {})[sid]) === today(); },
+    markBlitz(p, sid) { (p.blitzDay = p.blitzDay || {})[sid] = today(); G.save(); },
     save() { try { store.setItem(KEY, JSON.stringify(G.data)); } catch (e) { console.warn('save failed', e); } },
     settings() { return G.data.settings; },
     profiles() { return G.data.profiles; },
@@ -60,9 +65,9 @@
       st.attempts++; st.byLevel[L].a++; p.stats.attempts++;
       if (ctx.correct) { st.correct++; st.byLevel[L].c++; p.stats.correct++; }
       // XP: learning first — never negative
-      let xp = ctx.correct ? 5 + 5 * L : 1;
+      let xp = ctx.correct ? 5 + 5 * L : 0;            // XP only for correct answers (no reward for guessing)
       if (ctx.correct && !firstTry) { xp = Math.ceil(xp / 2); p.stats.retrySuccess++; }
-      if (ctx.hints) xp = Math.max(1, Math.ceil(xp * (1 - 0.2 * ctx.hints)));
+      if (ctx.hints && xp) xp = Math.max(1, Math.ceil(xp * (1 - 0.2 * ctx.hints)));
       if (ctx.mode === 'boss') xp += ctx.correct ? 5 : 0;
       const before = G.levelOf(p.xp), lgBefore = G.leagueOf(p.xp); p.xp += xp; ev.xp = xp; ev.levelUp = G.levelOf(p.xp) > before;
       // no-hint streak
@@ -85,7 +90,7 @@
         if (st.auto && L > 1 && last4.length >= 3 && last4.filter(r => !r.ok).length >= 3) { ev.dropDown = true; st.level = L - 1; st.recent = []; }
       }
       // daily streak
-      const t = today(); if (p.streak.last !== t) { p.streak.days = p.streak.last && dayDiff(p.streak.last, t) === 1 ? p.streak.days + 1 : 1; p.streak.last = t; }
+      const t = today(); if (p.streak.last !== t) { p.streak.days = p.streak.last && dayDiff(p.streak.last, t) === 1 ? p.streak.days + 1 : 1; p.streak.last = t; p.stats.bestStreak = Math.max(p.stats.bestStreak || 0, p.streak.days); }
       // daily quest
       const q = G.quest(p); if (q && !q.done) { q.tasks.forEach(tk => G.questProgress(tk, ex, ctx, sid)); if (q.tasks.every(tk => tk.n >= tk.goal)) { q.done = true; p.xp += 50; ev.xp += 50; ev.questDone = true; p.stats.questsDone++; } }
       ev.leagueUp = G.leagueOf(p.xp) > lgBefore ? G.leagueOf(p.xp) : 0;

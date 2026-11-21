@@ -30,7 +30,8 @@ js/core/check.js      answer checking for every widget type; canonical answer (u
 js/figures/figures.js SVG drawing: number lines, fraction bars/pies, grids, coordinates, maps, protractor, ruler, solids, nets,
                       cube buildings and views, clocks, scales, jugs, charts, tangram, bar models, money
 js/data/curriculum.js PE objectives and contents (French wording), NC levels 7–10, MathemaTIC items with their PE links
-js/data/map.js        adventure map (4 regions = 4 domains, 27 stages), badges, avatar items
+js/data/map.js        adventure map (4 regions = 4 domains, 27 stages), avatar items
+js/data/badges.js     badge families with five tiers (bronze, silver, gold, supreme, maximum)
 js/templates/*.js     97 exercise templates (registry.js = API + helpers; one file per domain)
 js/game/game.js       profiles, localStorage, XP, levels, stars, adaptivity, streaks, daily quest, badges, mastery per objective
 js/game/sets.js       exercise sets (fixed lists made by an adult, quick sets made by a pupil) and each pupil's saved work on them

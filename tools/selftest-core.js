@@ -100,7 +100,9 @@
     // dynamic keys used by the UI
     const need = [];
     MQ.MAP.regions.forEach(r => { need.push('region.' + r.id, 'region.' + r.id + '.intro', 'domain.' + r.domain); r.stages.forEach(s => need.push('stage.' + s, 'stage.' + s + '.d')); });
-    MQ.MAP.badges.forEach(b => need.push('badge.' + b.id, 'badge.' + b.id + '.d')); MQ.T.list.forEach(tp => need.push('t.' + tp.id + '.title'));
+    // badges: every name and every requirement text must render in every language
+    LANGS.forEach(l => MQ.MAP.badges.forEach(b => { const bt = MQ.badgeText(b.id, l); [bt.name, bt.desc, bt.tierName || ''].forEach(x => { if (BAD.test(x)) report.errors.push(`lang ${l}: badge ${b.id} renders badly: ${x}`); }); }));
+    MQ.MAP.BADGE_CATS.forEach(c => need.push('badgecat.' + c)); [1, 2, 3, 4, 5].forEach(t => need.push('badge.tier.' + t, 'badge.tierShort.' + t)); MQ.T.list.forEach(tp => need.push('t.' + tp.id + '.title'));
     Object.entries(MQ.MAP.avatar).forEach(([k, arr]) => { need.push('av.' + k); arr.forEach(it => need.push('av.' + k + '.' + it.id)); });
     ['stage', 'level3', 'nohint'].forEach(q => need.push('quest.' + q)); MQ.game && MQ.game.LEAGUES && MQ.game.LEAGUES.forEach(l => need.push('league.' + l.id)); for (let i = 1; i <= 8; i++) need.push('praise.' + i); [1, 2, 3, 4].forEach(L => need.push('lvl.' + L, 'lvl.' + L + '.d'));
     ['rolls', 'tickets', 'apples', 'price'].forEach(c => need.push('t.prop_table.h.' + c)); [8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3].forEach(p => need.push('pv.h.' + p));
