@@ -272,11 +272,17 @@
       const shown = s.lines.map((ln, i) => i === k ? wrong : vals[i]);
       // recompute later lines from the shown wrong value to stay consistent
       const exprs = s.lines.map(ln => ln.e.slice());
-      for (let i = k + 1; i < exprs.length; i++) { exprs[i] = exprs[i].map(tk => (tk instanceof MQ.Q || typeof tk === 'number') && vals.slice(0, i).some((v, j) => j === k && MQ.Q.of(tk).eq(v)) ? wrong : tk); shown[i] = MQ.evalExpr(exprs[i]); }
+      // carry the wrong value through ALL later lines: a number equal to the original result of an earlier line that changed
+      // is replaced by what that line now shows, and the line is recalculated
+      for (let i = k + 1; i < exprs.length; i++) {
+        exprs[i] = exprs[i].map(tk => { if (!(tk instanceof MQ.Q || typeof tk === 'number')) return tk; const q = MQ.Q.of(tk); for (let j = i - 1; j >= k; j--) if (!shown[j].eq(vals[j]) && q.eq(vals[j])) return shown[j]; return tk; });
+        shown[i] = MQ.evalExpr(exprs[i]);
+      }
       if (shown.some(x => x.n < 0)) return this.gen(r, L);
       return {
         prompt: m('t.rp_verify.q', { s: story(s), n: names(r, 1)[0] }),
-        widget: { type: 'mistake', steps: exprs.map((e, i) => line(e, shown[i])), wrongStep: k, fields: [field('fix', vals[k], { label: m('t.rp_verify.fix') })] },
+        widget: { type: 'mistake', steps: exprs.map((e, i) => line(e, shown[i])), wrongStep: k, stepFb: Object.fromEntries(exprs.map((_, i) => i).filter(i => i > k).map(i => [i, m('t.rp_verify.m.later')])), fields: [field('fix', vals[k], { label: m('t.rp_verify.fix') })] },
+        chainCheck: () => exprs.every((e, i) => i === k || MQ.evalExpr(e).eq(shown[i])) && exprs.slice(k + 1).every((e, ii) => { const i = k + 1 + ii; return e.every(tk => !(tk instanceof MQ.Q || typeof tk === 'number') || !vals.slice(k, i).some((v, j) => !shown[k + j].eq(v) && MQ.Q.of(tk).eq(v) && !MQ.Q.of(tk).eq(shown[k + j]))); }),
         answer: m('t.rp_verify.ans', { i: k + 1, x: vals[k] }), explain: m('t.rp_verify.ex', { i: k + 1, l: line(s.lines[k].e, vals[k]), x: s.answer })
       };
     }

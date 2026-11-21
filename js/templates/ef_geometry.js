@@ -650,8 +650,15 @@
         return { prompt: m('t.formula.q2', { n: m('t.formula.n.' + ask) }), widget: { type: 'mc', options: r.shuffle(opts.map(k => ({ label: m(k.startsWith('f.') ? k : 'f.' + k), correct: k === ask }))) }, answer: m('f.' + ask), explain: m('t.formula.ex.' + ask) };
       }
       if (L === 3) {
-        const w = r.int(4, 12), h = r.intExcept(2, 9, [w]); const wrongStep = 1;
-        return { prompt: m('t.formula.q3', { n: names(r, 1)[0], w: cm(w), h: cm(h) }), widget: { type: 'mistake', steps: [m('t.formula.s1'), m('t.formula.s2', { w, h, x: w * h }), m('t.formula.s3', { x: { unit: 'cm', val: new MQ.Q(w * h) } })], wrongStep, fields: [field('fix', new MQ.Q(2 * (w + h)), { unit: 'cm', label: m('t.formula.fix') })] }, answer: m('c.unitv', { x: cm(2 * (w + h)) }), explain: m('t.formula.ex3', { w, h, x: 2 * (w + h) }) };
+        // one mistake, in the idea (line 1) or in the calculation (line 2); line 3 only states the result of line 2
+        const w = r.int(4, 12), h = r.intExcept(2, 9, [w]); const P = 2 * (w + h);
+        const v = r.pick(['area', 'half', 'idea']);
+        const wrongStep = v === 'idea' ? 0 : 1, res = v === 'half' ? w + h : w * h;
+        const steps = [m(v === 'idea' ? 't.formula.s1w' : 't.formula.s1'), m(v === 'half' ? 't.formula.s2h' : 't.formula.s2', { w, h, x: res }), m('t.formula.s3', { x: { unit: 'cm', val: new MQ.Q(res) } })];
+        const stepFb = v === 'idea' ? { 1: m('t.formula.m.followsIdea'), 2: m('t.formula.m.concl') } : { 2: m('t.formula.m.concl') };
+        return { prompt: m('t.formula.q3', { n: names(r, 1)[0], w: cm(w), h: cm(h) }), widget: { type: 'mistake', steps, wrongStep, stepFb, fields: [field('fix', new MQ.Q(P), { unit: 'cm', label: m('t.formula.fix') })] },
+          answer: m('t.formula.ans3', { i: wrongStep + 1, x: cm(P) }), explain: m('t.formula.ex3' + { area: 'a', half: 'b', idea: 'c' }[v], { w, h, x: P, s: w + h, y: res }),
+          wrong: [{ step: 2, fields: { fix: P + ' cm' } }].concat(v === 'idea' ? [{ step: 1, fields: { fix: P + ' cm' } }] : []) };
       }
       const st = r.pick([['e1', true], ['e2', false], ['e3', true], ['e4', false]]);
       return { prompt: m('t.formula.q4', { s: m('t.formula.' + st[0]) }), widget: { type: 'tf', truth: st[1], reasons: r.shuffle([{ label: m('t.formula.r.' + st[0]), correct: true }, { label: m('t.formula.r.w1'), correct: false }, { label: m('t.formula.r.w2'), correct: false }]) }, answer: m(st[1] ? 'c.true' : 'c.false'), explain: m('t.formula.r.' + st[0]) };

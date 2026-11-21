@@ -63,6 +63,7 @@
     if (w.type === 'match' && w.left.length !== w.right.length) e('match sizes differ');
     if (w.type === 'tf' && w.reasons && w.reasons.filter(r => r.correct).length !== 1) e('tf needs exactly one correct reason');
     if (w.type === 'mistake' && !(w.wrongStep >= 0 && w.wrongStep < w.steps.length)) e('mistake step out of range');
+    if (ex.chainCheck && !ex.chainCheck()) e('later lines do not carry the wrong result consistently');
     if (w.type === 'numberline' && !(w.target > 0 && w.target < w.ticks)) e('numberline target at an end/outside');
     (w.fields || []).forEach(f => { if (f.kind === 'num' || !f.kind) { const q = MQ.Q.of(f.expect); if (q.n < 0) e('negative answer ' + q); if (f.form === 'decimal' && q.decimalPlaces() < 0) e('decimal answer expected but value is ' + q); if (f.form === 'decimal' && q.decimalPlaces() > 3) e('more than 3 decimals: ' + q.toDecimalString()); if (ex.decimalsOnly && q.decimalPlaces() > 3) e('more than 3 decimals: ' + q.toDecimalString()); } });
     (ex.ranges || []).forEach(([nm, v, lo, hi]) => { if (!(v >= lo && v <= hi)) e(`range ${nm}=${v} not in [${lo},${hi}]`); });
