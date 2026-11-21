@@ -56,6 +56,7 @@
       box.innerHTML = `<div class="kpis">
         <div class="kpi"><b>${G.levelOf(p.xp)}</b><span>${t('dash.level')}</span></div>
         <div class="kpi"><b>${p.xp}</b><span>XP</span></div>
+        <div class="kpi"><b>${G.LEAGUES[G.leagueOf(p.xp)].icon}</b><span>${t('league.' + G.LEAGUES[G.leagueOf(p.xp)].id)}</span></div>
         <div class="kpi"><b>${p.stats.attempts}</b><span>${t('dash.exercises')}</span></div>
         <div class="kpi"><b>${pct(acc)}</b><span>${t('dash.correctRate')}</span></div>
         <div class="kpi"><b>${mins(p.time.total)} min</b><span>${t('dash.time')}</span></div>

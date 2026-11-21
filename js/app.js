@@ -48,7 +48,7 @@
       const right = h('div', { class: 'tools' });
       if (p) {
         const L = G.levelOf(p.xp), [a, b] = G.levelRange(L);
-        const chip = h('button', { class: 'pchip', type: 'button', 'aria-label': t('ui.profileMenu') }, `<b>${esc(p.name)}</b><span class="lv">${t('ui.level', { n: L })}</span><span class="lvs">${t('ui.levelShort', { n: L })}</span><span class="xpbar" aria-hidden="true"><i style="width:${Math.round(100 * (p.xp - a) / (b - a))}%"></i></span><span class="xp">${p.xp} XP</span>${p.streak.days ? `<span class="streak" title="${t('ui.streak')}">🔥 ${p.streak.days}</span>` : ''}`);
+        const chip = h('button', { class: 'pchip', type: 'button', 'aria-label': t('ui.profileMenu') }, `<b>${esc(p.name)}</b><span class="lg" title="${t('league.' + G.LEAGUES[G.leagueOf(p.xp)].id)}">${G.LEAGUES[G.leagueOf(p.xp)].icon}</span><span class="lv">${t('ui.level', { n: L })}</span><span class="lvs">${t('ui.levelShort', { n: L })}</span><span class="xpbar" aria-hidden="true"><i style="width:${Math.round(100 * (p.xp - a) / (b - a))}%"></i></span><span class="xp">${p.xp} XP</span>${p.streak.days ? `<span class="streak" title="${t('ui.streak')}">🔥 ${p.streak.days}</span>` : ''}`);
         chip.onclick = () => App.go('profiles'); right.appendChild(chip);
       }
       const sel = h('select', { class: 'langsel', 'aria-label': t('ui.language') });
@@ -144,7 +144,7 @@
       main.appendChild(wrap);
       const nav = h('div', { class: 'navrow' });
       const nSets = MQ.sets.forPupil(p).filter(s => { const r = (p.setRuns || {})['s:' + s.id]; return !r || !MQ.sets.summary(r).complete; }).length;
-      [['📚', 'ui.sets', () => App.go('sets'), nSets], ['🦁', 'ui.avatar', () => App.go('avatar')], ['🏅', 'ui.badges', () => App.go('badges')]].forEach(([i, k, fn, badge]) => { const b = h('button', { class: 'btn', type: 'button' }, `${i} ${t(k)}${badge ? ` <span class="pill">${badge}</span>` : ''}`); b.onclick = fn; nav.appendChild(b); });
+      [['📚', 'ui.sets', () => App.go('sets'), nSets], [G.LEAGUES[G.leagueOf(p.xp)].icon, 'ui.leagues', () => App.go('leagues')], ['🦁', 'ui.avatar', () => App.go('avatar')], ['🏅', 'ui.badges', () => App.go('badges')]].forEach(([i, k, fn, badge]) => { const b = h('button', { class: 'btn', type: 'button' }, `${i} ${t(k)}${badge ? ` <span class="pill">${badge}</span>` : ''}`); b.onclick = fn; nav.appendChild(b); });
       main.appendChild(nav);
     },
 
@@ -219,18 +219,37 @@
       main.appendChild(h('h1', {}, t('ui.avatarTitle')));
       const prev = h('div', { class: 'avprev' }); const render = () => { prev.innerHTML = MQ.mascot(p.avatar, 160) + `<p>${t('ui.mascotIntro')}</p>`; };
       render(); main.appendChild(prev);
-      ['fur', 'acc', 'bg'].forEach(kind => {
+      const cur = kind => p.avatar[kind] || A[kind][0].id;
+      ['style', 'fur', 'acc', 'frame', 'bg'].forEach(kind => {
         const sec = h('div', { class: 'card avsec' }); sec.appendChild(h('h3', {}, t('av.' + kind)));
         const row = h('div', { class: 'avrow' });
         A[kind].forEach(it => {
-          const locked = it.lvl > L; const b = h('button', { type: 'button', class: 'avopt' + (p.avatar[kind] === it.id ? ' sel' : '') + (locked ? ' locked' : ''), 'aria-pressed': p.avatar[kind] === it.id, 'aria-label': t('av.' + kind + '.' + it.id) + (locked ? ' — ' + t('ui.unlockAt', { n: it.lvl }) : '') });
-          b.innerHTML = MQ.mascot({ ...p.avatar, [kind]: it.id }, 56) + `<small>${locked ? '🔒 ' + t('ui.levelShort', { n: it.lvl }) : t('av.' + kind + '.' + it.id)}</small>`;
-          b.onclick = () => { if (locked) { App.toast(t('ui.unlockAt', { n: it.lvl })); return; } p.avatar[kind] = it.id; G.save(); App.header(); App.go('avatar', { first }); };
+          const locked = !G.unlocked(p, it);
+          const need = it.league != null ? t('ui.unlockLeague', { l: { k: 'league.' + G.LEAGUES[it.league].id } }) : t('ui.unlockAt', { n: it.lvl });
+          const short = it.league != null ? G.LEAGUES[it.league].icon : t('ui.levelShort', { n: it.lvl });
+          const b = h('button', { type: 'button', class: 'avopt' + (cur(kind) === it.id ? ' sel' : '') + (locked ? ' locked' : ''), 'aria-pressed': cur(kind) === it.id, 'aria-label': t('av.' + kind + '.' + it.id) + (locked ? ' — ' + need : '') });
+          b.innerHTML = MQ.mascot({ ...p.avatar, [kind]: it.id }, 56) + `<small>${locked ? '🔒 ' + short : t('av.' + kind + '.' + it.id)}</small>`;
+          b.onclick = () => { if (locked) { App.toast(need); return; } p.avatar[kind] = it.id; G.save(); App.header(); App.go('avatar', { first }); };
           row.appendChild(b);
         });
         sec.appendChild(row); main.appendChild(sec);
       });
       const done = h('button', { class: 'btn primary big', type: 'button' }, first ? t('ui.letsGo') : t('ui.done')); done.onclick = () => App.go('map'); main.appendChild(done);
+    },
+
+    /* ---------------- leagues (personal: no ranking against other children) ---------------- */
+    leagues(main) {
+      const p = G.active(); if (!p) return App.go('profiles');
+      const back = h('button', { class: 'btn back', type: 'button' }, '← ' + t('ui.map')); back.onclick = () => App.go('map'); main.appendChild(back);
+      main.appendChild(h('h1', {}, '🏆 ' + t('ui.leagues')));
+      const cur = G.leagueOf(p.xp), next = G.LEAGUES[cur + 1];
+      main.appendChild(h('p', {}, next ? t('ui.leagueNext', { n: next.xp - p.xp, l: { k: 'league.' + next.id } }) : t('ui.leagueTop')));
+      const list = h('ol', { class: 'leaguelist', reversed: '' });
+      G.LEAGUES.slice().reverse().forEach(lg => { const i = G.LEAGUES.indexOf(lg); const nx = G.LEAGUES[i + 1]; const pct = i < cur ? 100 : i > cur ? 0 : nx ? Math.round(100 * (p.xp - lg.xp) / (nx.xp - lg.xp)) : 100;
+        const frame = MQ.MAP.avatar.frame.find(f => f.league === i);
+        list.appendChild(h('li', { class: 'league' + (i === cur ? ' cur' : i < cur ? ' done' : ' todo') }, `<span class="lgicon">${lg.icon}</span><div class="lginfo"><b>${t('league.' + lg.id)}</b><small>${lg.xp} XP${frame ? ' · ' + t('ui.leagueReward', { f: { k: 'av.frame.' + frame.id } }) : ''}</small><span class="lgbar"><i style="width:${pct}%"></i></span></div>${i === cur ? `<span class="you">${MQ.mascot(p.avatar, 44)}</span>` : ''}`)); });
+      main.appendChild(list);
+      main.appendChild(h('p', { class: 'small' }, t('ui.leagueNote')));
     },
 
     /* ---------------- badges ---------------- */
@@ -362,7 +381,7 @@
       const card = h('section', { class: 'excard', 'aria-live': 'polite' });
       const q = h('div', { class: 'prompt' });
       q.innerHTML = `<div class="qtext">${tm(ex.prompt)}</div>`;
-      const say = h('button', { class: 'icon say', type: 'button', 'aria-label': t('ui.readAloud') }, '🗣️');
+      const say = h('button', { class: 'icon say', type: 'button', 'aria-label': t('ui.readAloud'), title: t('ui.readAloud') }, MQ.mascot(this.p.avatar, 40) + '<span class="wave" aria-hidden="true">🔊</span>');
       say.onclick = () => { const r = MQ.speech.speak(MQ.stripHtml(tm(ex.prompt)), lang); if (!r.ok) App.toast(t('ui.noSpeech')); else if (r.fallback && !this.warnedLb) { this.warnedLb = true; App.toast(t('ui.lbVoice')); } };
       q.prepend(say); card.appendChild(q);
       const fig = renderFigure(ex, lang); if (fig) card.appendChild(h('div', { class: 'figure' }, fig));
@@ -434,6 +453,7 @@
       this.lastRes = { kind: correct ? 'ok' : 'solution', fb: res.fb, ev, praise: 'praise.' + (1 + Math.floor(Math.random() * 8)) };
       this.widget.lock(); this.widget.reveal && !correct && this.widget.reveal();
       this.showFeedback(this.lastRes); this.saveCur(); this.updateButtons(); App.header();
+      if (ev.leagueUp) setTimeout(() => { const lg = G.LEAGUES[ev.leagueUp]; MQ.audio.play('badge'); App.confetti(); App.modal(`<div class="leagueup"><div class="lgicon">${lg.icon}</div><h2>${t('ui.leagueUpTitle')}</h2><p>${t('ui.leagueUp', { l: { k: 'league.' + lg.id } })}</p>${MQ.MAP.avatar.frame.some(f => f.league === ev.leagueUp) ? `<p class="small">${t('ui.leagueFrame')}</p>` : ''}</div>`, [{ label: t('ui.letsGo'), cls: 'primary' }]); }, 400);
       if (ev.levelUp) { MQ.audio.play('level'); App.toast(`⭐ ${t('ui.levelUp', { n: G.levelOf(this.p.xp) })}`); }
       ev.newBadges.forEach(b => { MQ.audio.play('badge'); App.toast(`🏅 ${t('ui.newBadge', { b: { k: 'badge.' + b } })}`); });
       if (ev.questDone) App.toast('📜 ' + t('ui.questDone'));

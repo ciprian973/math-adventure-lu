@@ -43,6 +43,10 @@
     },
     regionStars(p, r) { return r.stages.reduce((a, s) => a + G.stars(p, s), 0); },
 
+    /* ---- personal leagues (by total XP; no ranking against other children) ---- */
+    LEAGUES: [{ id: 'bronze', xp: 0, icon: '🥉' }, { id: 'silver', xp: 500, icon: '🥈' }, { id: 'gold', xp: 1500, icon: '🥇' }, { id: 'platinum', xp: 3500, icon: '💠' }, { id: 'diamond', xp: 7000, icon: '💎' }, { id: 'legend', xp: 12000, icon: '👑' }],
+    leagueOf(xp) { let i = 0; G.LEAGUES.forEach((l, k) => { if (xp >= l.xp) i = k; }); return i; },
+    unlocked(p, it) { return it.league != null ? G.leagueOf(p.xp) >= it.league : G.levelOf(p.xp) >= (it.lvl || 1); },
     /* ---- XP and player level ---- */
     levelOf(xp) { let L = 1; while (xp >= 25 * L * (L + 1)) L++; return L; },     // 50, 150, 300, 500 …
     levelRange(L) { return [25 * (L - 1) * L, 25 * L * (L + 1)]; },
@@ -60,7 +64,7 @@
       if (ctx.correct && !firstTry) { xp = Math.ceil(xp / 2); p.stats.retrySuccess++; }
       if (ctx.hints) xp = Math.max(1, Math.ceil(xp * (1 - 0.2 * ctx.hints)));
       if (ctx.mode === 'boss') xp += ctx.correct ? 5 : 0;
-      const before = G.levelOf(p.xp); p.xp += xp; ev.xp = xp; ev.levelUp = G.levelOf(p.xp) > before;
+      const before = G.levelOf(p.xp), lgBefore = G.leagueOf(p.xp); p.xp += xp; ev.xp = xp; ev.levelUp = G.levelOf(p.xp) > before;
       // no-hint streak
       if (ctx.correct && !ctx.hints && firstTry) { p.stats.noHintStreak++; p.stats.noHintStreakBest = Math.max(p.stats.noHintStreakBest, p.stats.noHintStreak); } else p.stats.noHintStreak = 0;
       // objectives mastery (recent window of 10)
@@ -84,6 +88,7 @@
       const t = today(); if (p.streak.last !== t) { p.streak.days = p.streak.last && dayDiff(p.streak.last, t) === 1 ? p.streak.days + 1 : 1; p.streak.last = t; }
       // daily quest
       const q = G.quest(p); if (q && !q.done) { q.tasks.forEach(tk => G.questProgress(tk, ex, ctx, sid)); if (q.tasks.every(tk => tk.n >= tk.goal)) { q.done = true; p.xp += 50; ev.xp += 50; ev.questDone = true; p.stats.questsDone++; } }
+      ev.leagueUp = G.leagueOf(p.xp) > lgBefore ? G.leagueOf(p.xp) : 0;
       // badges
       ev.newBadges = G.checkBadges(p);
       G.save(); return ev;

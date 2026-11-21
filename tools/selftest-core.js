@@ -102,7 +102,7 @@
     MQ.MAP.regions.forEach(r => { need.push('region.' + r.id, 'region.' + r.id + '.intro', 'domain.' + r.domain); r.stages.forEach(s => need.push('stage.' + s, 'stage.' + s + '.d')); });
     MQ.MAP.badges.forEach(b => need.push('badge.' + b.id, 'badge.' + b.id + '.d')); MQ.T.list.forEach(tp => need.push('t.' + tp.id + '.title'));
     Object.entries(MQ.MAP.avatar).forEach(([k, arr]) => { need.push('av.' + k); arr.forEach(it => need.push('av.' + k + '.' + it.id)); });
-    ['stage', 'level3', 'nohint'].forEach(q => need.push('quest.' + q)); for (let i = 1; i <= 8; i++) need.push('praise.' + i); [1, 2, 3, 4].forEach(L => need.push('lvl.' + L, 'lvl.' + L + '.d'));
+    ['stage', 'level3', 'nohint'].forEach(q => need.push('quest.' + q)); MQ.game && MQ.game.LEAGUES && MQ.game.LEAGUES.forEach(l => need.push('league.' + l.id)); for (let i = 1; i <= 8; i++) need.push('praise.' + i); [1, 2, 3, 4].forEach(L => need.push('lvl.' + L, 'lvl.' + L + '.d'));
     ['rolls', 'tickets', 'apples', 'price'].forEach(c => need.push('t.prop_table.h.' + c)); [8, 7, 6, 5, 4, 3, 2, 1, 0, -1, -2, -3].forEach(p => need.push('pv.h.' + p));
     LANGS.forEach(l => need.forEach(k => { if (D[l][k] == null) report.errors.push(`lang ${l}: missing UI key ${k}`); }));
     // stages with no template
