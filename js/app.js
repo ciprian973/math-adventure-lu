@@ -199,16 +199,16 @@
       const mine = MQ.sets.forPupil(p);
       if (!mine.length) main.appendChild(h('p', { class: 'small' }, t('ui.noSets')));
       const list = h('div', { class: 'stagegrid' });
-      mine.forEach(s => { const c = h('div', { class: 'stage card' }); c.innerHTML = `<h3>${esc(s.name)}</h3><p class="sdesc">${[...new Set(s.items.map(x => x.stage))].map(x => t('stage.' + x)).join(' · ')}</p><p class="small">${t('ui.setSize', { n: s.items.length })} · ${s.level === 'mix' ? t('dash.setMixed') : t('lvl.' + s.level)}</p>`; runBtns('s:' + s.id, c); list.appendChild(c); });
+      mine.forEach(s => { const c = h('div', { class: 'stage card' }); c.innerHTML = `<h3>${esc(s.name)}</h3><p class="sdesc">${[...new Set(s.items.map(x => x.stage))].map(x => t('stage.' + x)).join(' · ')}</p><p class="small">${t('ui.setSize', { n: s.items.length })} · ${s.level === 'mix' ? t('dash.setMixed') : s.level === 'mixx' ? t('dash.setMixedX') : t('lvl.' + s.level)}</p>`; runBtns('s:' + s.id, c); list.appendChild(c); });
       main.appendChild(list);
       // quick sets made by the pupil
       main.appendChild(h('h2', {}, '⚡ ' + t('ui.quickSets')));
       const f = h('form', { class: 'card form quickset' });
       f.innerHTML = `<label>${t('ui.qsTopic')} <select name="st">${MQ.MAP.regions.map(r => `<optgroup label="${esc(t('region.' + r.id))}">${r.stages.map(sid => `<option value="${sid}">${esc(t('stage.' + sid))}</option>`).join('')}</optgroup>`).join('')}</select></label>
         <label>${t('ui.qsCount')} <select name="n">${[5, 10, 15, 20].map(n => `<option ${n === 10 ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
-        <label>${t('ui.qsLevel')} <select name="L"><option value="mine">${t('ui.qsMine')}</option><option value="mix">${t('dash.setMixed')}</option>${[1, 2, 3, 4].map(L => `<option value="${L}">${L} · ${t('lvl.' + L)}</option>`).join('')}</select></label>
+        <label>${t('ui.qsLevel')} <select name="L"><option value="mine">${t('ui.qsMine')}</option><option value="mix">${t('dash.setMixed')}</option>${[1, 2, 3, 4, 5].map(L => `<option value="${L}">${L} · ${t('lvl.' + L)}</option>`).join('')}</select></label>
         <button class="btn primary">✨ ${t('ui.qsMake')}</button>`;
-      f.onsubmit = e => { e.preventDefault(); const key = MQ.sets.quick(p, f.st.value, +f.n.value, f.L.value); App.go('play', { mode: 'set', key }); };
+      f.onsubmit = e => { e.preventDefault(); if (f.L.value === '5' && !G.extremeOpen(p, f.st.value)) { App.toast('🔒 ' + t('ui.extremeLocked')); return; } const key = MQ.sets.quick(p, f.st.value, +f.n.value, f.L.value); App.go('play', { mode: 'set', key }); };
       main.appendChild(f);
       const quick = Object.values(p.setRuns || {}).filter(r => r.key.startsWith('q:')).sort((a, b) => b.updated - a.updated);
       if (quick.length) { const ql = h('div', { class: 'stagegrid' }); quick.forEach(r => { const c = h('div', { class: 'stage card' }); c.innerHTML = `<h3>${esc(t('stage.' + r.stage))}</h3><p class="small">${t('ui.setSize', { n: r.items.length })} · ${(d => MQ.fmtDate(d.getFullYear(), d.getMonth() + 1, d.getDate()))(new Date(r.started))}</p>`; runBtns(r.key, c); ql.appendChild(c); }); main.appendChild(ql); }

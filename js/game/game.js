@@ -40,7 +40,9 @@
     /* ---- per-stage state ---- */
     stage(p, sid) { if (!p.stages[sid]) p.stages[sid] = { level: 1, auto: true, attempts: 0, correct: 0, byLevel: { 1: { c: 0, a: 0 }, 2: { c: 0, a: 0 }, 3: { c: 0, a: 0 }, 4: { c: 0, a: 0 }, 5: { c: 0, a: 0 } }, recent: [], suggested: 0 }; const s = p.stages[sid]; if (!s.byLevel[5]) s.byLevel[5] = { c: 0, a: 0 }; return s; },
     /* level 5 (extreme) opens when the topic has all 3 stars */
-    extremeOpen(p, sid) { return G.stars(p, sid) >= 3 && MQ.T.forStage(sid, 5).length > 0; },
+    /* opened by 3 stars, or by a parent/teacher (p.xUnlock: 'all' or a list of stages) */
+    extremeOpen(p, sid) { return MQ.T.forStage(sid, 5).length > 0 && (G.stars(p, sid) >= 3 || G.extremeByAdult(p, sid)); },
+    extremeByAdult(p, sid) { return p.xUnlock === 'all' || (Array.isArray(p.xUnlock) && p.xUnlock.includes(sid)); },
     extremeCount(p) { return Object.values(p.stages).reduce((a, s) => a + ((s.byLevel || {})[5] || { c: 0 }).c, 0); },
     stars(p, sid) {
       const s = p.stages[sid]; if (!s) return 0; const b = s.byLevel;
@@ -74,11 +76,11 @@
       const ev = { xp: 0, levelUp: false, suggestUp: false, dropDown: false, newBadges: [], questDone: false };
       const sid = ctx.stage; const st = G.stage(p, sid); const L = ex.level; if (!st.byLevel[L]) st.byLevel[L] = { c: 0, a: 0 };
       const firstTry = ctx.tries === 1;
-      const starsBefore = G.stars(p, sid);
+      const starsBefore = G.stars(p, sid), xBefore = G.extremeOpen(p, sid);
       st.attempts++; st.byLevel[L].a++; p.stats.attempts++;
       if (ctx.correct) { st.correct++; st.byLevel[L].c++; p.stats.correct++; }
       ev.starUp = G.stars(p, sid) > starsBefore ? G.stars(p, sid) : 0;
-      ev.extremeOpened = ev.starUp === 3 && G.extremeOpen(p, sid);
+      ev.extremeOpened = !xBefore && G.extremeOpen(p, sid);
       // XP: learning first — never negative
       let xp = ctx.correct ? (L === 5 ? 40 : 5 + 5 * L) : 0;            // XP only for correct answers (no reward for guessing)
       if (ctx.correct && !firstTry) { xp = Math.ceil(xp / 2); p.stats.retrySuccess++; }

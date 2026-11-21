@@ -104,6 +104,23 @@
         r.stages.forEach(sid => { const l = h('label', { class: 'row' }, `<input type="checkbox" ${p.assigned.includes(sid) ? 'checked' : ''}> ${t('stage.' + sid)}`); l.querySelector('input').onchange = e => { if (e.target.checked) p.assigned.push(sid); else p.assigned = p.assigned.filter(x => x !== sid); p.quest = null; G.save(); }; sec.appendChild(l); });
         box.appendChild(sec);
       });
+      // level 5 (extreme): opened by 3 stars, or here by the adult
+      const xs = h('fieldset', { class: 'card xunlock' }); xs.appendChild(h('legend', {}, '🏔️ ' + t('dash.xTitle')));
+      xs.appendChild(h('p', { class: 'small' }, t('dash.xNote', { n: esc(p.name) })));
+      const all = h('label', { class: 'row' }, `<input type="checkbox" ${p.xUnlock === 'all' ? 'checked' : ''}> <b>${t('dash.xAll')}</b>`);
+      all.querySelector('input').onchange = e => { if (e.target.checked) { p.xSaved = Array.isArray(p.xUnlock) ? p.xUnlock : []; p.xUnlock = 'all'; } else p.xUnlock = p.xSaved || []; G.save(); App().go('teacher'); };   // the topics chosen one by one are kept
+      xs.appendChild(all);
+      MQ.MAP.regions.forEach(r => {
+        const g = h('div', { class: 'rgroup' }, `<b>${esc(t('region.' + r.id))}</b>`);
+        r.stages.filter(sid => MQ.T.forStage(sid, 5).length).forEach(sid => {
+          const byStars = G.stars(p, sid) >= 3, byAdult = G.extremeByAdult(p, sid);
+          const l = h('label', { class: 'row' }, `<input type="checkbox" ${byStars || byAdult ? 'checked' : ''} ${byStars || p.xUnlock === 'all' ? 'disabled' : ''}> ${esc(t('stage.' + sid))}${byStars ? ` <span class="small">— ${t('dash.xByStars')}</span>` : ''}`);
+          l.querySelector('input').onchange = e => { const lst = Array.isArray(p.xUnlock) ? p.xUnlock : []; p.xUnlock = e.target.checked ? lst.concat(sid) : lst.filter(x => x !== sid); G.save(); };
+          g.appendChild(l);
+        });
+        xs.appendChild(g);
+      });
+      box.appendChild(xs);
     },
 
     /* ---- exercise sets: create, assign, see results ---- */
@@ -114,14 +131,14 @@
       f.innerHTML = `<h3>➕ ${t('dash.setNew')}</h3>
         <label>${t('dash.setName')} <input name="nm" type="text" maxlength="60" placeholder="${esc(t('dash.setNamePh'))}" required></label>
         <fieldset class="stagepick"><legend>${t('dash.setStages')}</legend>${MQ.MAP.regions.map(r => `<div class="rgroup"><b>${esc(t('region.' + r.id))}</b>${r.stages.map(sid => `<label class="row"><input type="checkbox" name="st" value="${sid}"> ${esc(t('stage.' + sid))}</label>`).join('')}</div>`).join('')}</fieldset>
-        <div class="brow"><label>${t('dash.setLevel')} <select name="L"><option value="mix">${t('dash.setMixed')}</option>${[1, 2, 3, 4].map(L => `<option value="${L}">${L} · ${t('lvl.' + L)}</option>`).join('')}</select></label>
+        <div class="brow"><label>${t('dash.setLevel')} <select name="L"><option value="mix">${t('dash.setMixed')}</option><option value="mixx">${t('dash.setMixedX')}</option>${[1, 2, 3, 4, 5].map(L => `<option value="${L}">${L} · ${t('lvl.' + L)}</option>`).join('')}</select></label>
         <label>${t('dash.setCount')} <select name="n">${[5, 8, 10, 12, 15, 20].map(n => `<option ${n === 10 ? 'selected' : ''}>${n}</option>`).join('')}</select></label></div>
         <fieldset><legend>${t('dash.setAssign')}</legend>${ps.map(pp => `<label class="row"><input type="checkbox" name="pp" value="${pp.id}" checked> ${esc(pp.name)}</label>`).join('')}</fieldset>
         <button class="btn primary">${t('dash.setCreate')}</button>`;
       f.onsubmit = e => {
         e.preventDefault(); const stages = [...f.querySelectorAll('input[name=st]:checked')].map(x => x.value);
         if (!stages.length) { App().toast(t('dash.setNeedStage')); return; }
-        const set = MQ.sets.create(f.nm.value, stages, f.L.value === 'mix' ? 'mix' : +f.L.value, +f.n.value);
+        const set = MQ.sets.create(f.nm.value, stages, /^mix/.test(f.L.value) ? f.L.value : +f.L.value, +f.n.value);
         [...f.querySelectorAll('input[name=pp]:checked')].forEach(x => MQ.sets.toggleAssign(set.id, x.value, true));
         App().toast('✓ ' + t('dash.setCreated', { n: set.name })); App().go('teacher');
       };
@@ -130,8 +147,8 @@
       if (!sets.length) { box.appendChild(h('p', { class: 'small' }, t('dash.noSetsYet'))); return; }
       sets.slice().reverse().forEach(set => {
         const c = h('div', { class: 'card setcard' });
-        c.innerHTML = `<h3>📚 ${esc(set.name)} <small>· ${t('ui.setSize', { n: set.items.length })} · ${set.level === 'mix' ? t('dash.setMixed') : t('lvl.' + set.level)} · ${esc(set.created.split('-').reverse().join('.'))}</small></h3>`;
-        const det = h('details', {}, `<summary>${t('dash.setPreview')}</summary><ol class="small">${set.items.map(it => `<li>${esc(t('stage.' + it.stage))} — ${esc(t('t.' + it.tpl + '.title'))} (${t('dash.level')} ${it.level})</li>`).join('')}</ol>`);
+        c.innerHTML = `<h3>📚 ${esc(set.name)} <small>· ${t('ui.setSize', { n: set.items.length })} · ${set.level === 'mix' ? t('dash.setMixed') : set.level === 'mixx' ? t('dash.setMixedX') : t('lvl.' + set.level)} · ${esc(set.created.split('-').reverse().join('.'))}</small></h3>`;
+        const det = h('details', {}, `<summary>${t('dash.setPreview')}</summary><ol class="small">${set.items.map(it => `<li>${esc(t('stage.' + it.stage))} — ${esc(t('t.' + it.tpl + '.title'))} (${t('dash.level')} ${it.level}${it.level === 5 ? ' 🏔️' : ''})</li>`).join('')}</ol>`);
         c.appendChild(det);
         const tbl = h('table', { class: 'dtable' });
         tbl.innerHTML = `<tr><th>${t('dash.setPupil')}</th><th>${t('dash.setAssigned')}</th><th>${t('dash.setResult')}</th></tr>` + ps.map(pp => {

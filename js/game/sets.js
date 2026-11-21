@@ -19,15 +19,17 @@
     all() { return G.data.sets || (G.data.sets = []); },
     byId(id) { return S.all().find(s => s.id === id) || null; },
 
-    /* Pick `count` exercises from the given stages. level: 1–4, 'mix' (rises 1→4
-     * across the set) or 'mine' (each stage at the pupil's current level). */
+    /* Pick `count` exercises from the given stages. level: 1–5, 'mix' (rises 1→4
+     * across the set), 'mixx' (rises 2→5, the last quarter extreme) or 'mine'
+     * (each stage at the pupil's current level). Level 5 = extreme problems. */
     makeItems(stages, level, count, seed, p) {
       const r = MQ.RNG(seed >>> 0); const items = []; let lastTpl = null;
       for (let i = 0; i < count; i++) {
         const sid = stages[i % stages.length];
-        const tpls = MQ.T.forStage(sid); const pool = tpls.length > 1 ? tpls.filter(tp => tp.id !== lastTpl) : tpls;
+        let L = level === 'mix' ? Math.min(4, 1 + Math.floor(4 * i / count)) : level === 'mixx' ? Math.min(5, 2 + Math.floor(4 * i / count)) : level === 'mine' ? (p ? G.stage(p, sid).level : 1) : +level;
+        let tpls = MQ.T.forStage(sid, L); if (!tpls.length) { L = Math.min(L, 4); tpls = MQ.T.forStage(sid, L); }
+        const pool = tpls.length > 1 ? tpls.filter(tp => tp.id !== lastTpl) : tpls;
         const tp = r.pick(pool); lastTpl = tp.id;
-        const L = level === 'mix' ? Math.min(4, 1 + Math.floor(4 * i / count)) : level === 'mine' ? (p ? G.stage(p, sid).level : 1) : +level;
         items.push({ tpl: tp.id, level: L, seed: r.int(1, 2 ** 30), stage: stageOfTpl(tp, [sid]) });
       }
       return items;
