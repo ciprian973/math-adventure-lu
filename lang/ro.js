@@ -1871,6 +1871,7 @@ window.I18N_DATA["ro"] = {
  "ui.barsHelp": "Diagramă: săgețile stânga/dreapta aleg o bară, sus/jos schimbă înălțimea.",
  "ui.because": "Pentru că …",
  "ui.bestSoFar": "Cel mai bun rezultat al tău: {n}",
+ "ui.binsTip": "Atinge un cartonaș, apoi grupul în care îl pui. Atinge-l din nou ca să-l iei înapoi.",
  "ui.blitzNote": "Doar tu îți vezi recordul. Viteza e un bonus — înțelegerea e pe primul loc.",
  "ui.blitzScore": "Ai rezolvat [[n|one:# exercițiu|few:# exerciții|other:# de exerciții]] în 2 minute.",
  "ui.boss": "Marea provocare",

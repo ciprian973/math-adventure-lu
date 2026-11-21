@@ -1871,6 +1871,7 @@ window.I18N_DATA["de"] = {
  "ui.barsHelp": "Diagramm: Pfeile links/rechts wählen eine Säule, oben/unten ändern die Höhe.",
  "ui.because": "Weil …",
  "ui.bestSoFar": "Dein bisher bestes Ergebnis: {n}",
+ "ui.binsTip": "Tippe auf eine Karte und dann auf die Gruppe, in die sie gehört. Tippe noch einmal darauf, um sie zurückzunehmen.",
  "ui.blitzNote": "Nur du siehst deinen Rekord. Tempo ist ein Bonus — Verstehen kommt zuerst.",
  "ui.blitzScore": "Du hast [[n|one:# Aufgabe|other:# Aufgaben]] in 2 Minuten gelöst.",
  "ui.boss": "Großes Finale",

@@ -178,10 +178,11 @@
         const c = h('button', { type: 'button', class: 'card' + (picked === i ? ' picked' : ''), 'aria-pressed': picked === i });
         c.innerHTML = T(it.label, lang);
         if (it.speak) c.setAttribute('aria-label', MQ.stripHtml(T(it.speak, lang)));
-        c.addEventListener('click', e => { e.stopPropagation(); if (place[i] != null && picked == null) { place[i] = null; picked = i; } else picked = picked === i ? null : i; render(); });
+        c.addEventListener('click', e => { e.stopPropagation(); if (picked != null && picked !== i && place[i] != null) { place[picked] = place[i]; picked = null; } else if (place[i] != null && picked == null) { place[i] = null; picked = i; } else picked = picked === i ? null : i; render(); });
         cardDrag(c, i, box, bi => { place[i] = bi; picked = null; render(); });
         (place[i] == null ? pool : bins[place[i]].querySelector('.bincards')).appendChild(c);
       });
+      box.appendChild(h('p', { class: 'tip' }, MQ.t('ui.binsTip', {}, lang)));
       box.appendChild(pool); const row = h('div', { class: 'binrow' }); bins.forEach(b => row.appendChild(b)); box.appendChild(row);
     };
     render();
@@ -189,7 +190,9 @@
   };
   function cardDrag(card, i, box, drop) {
     card.addEventListener('pointerdown', e => {
-      if (e.button !== 0) return; const sx = e.clientX, sy = e.clientY; let moved = false;
+      // with a finger, a swipe must scroll the page: cards are placed by tapping
+      // the card and then the group; dragging is kept for mouse and pen
+      if (e.button !== 0 || e.pointerType === 'touch') return; const sx = e.clientX, sy = e.clientY; let moved = false;
       const move = ev => { if (Math.hypot(ev.clientX - sx, ev.clientY - sy) > 8) { moved = true; card.style.transform = `translate(${ev.clientX - sx}px,${ev.clientY - sy}px)`; card.classList.add('dragging'); } };
       const up = ev => {
         window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);

@@ -129,7 +129,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 1rem; outline: none; }
 .opt.right { border-color: var(--ok); background: var(--ok-bg); }
 .ofig svg { max-height: 160px; }
 .w-order { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .5rem; counter-reset: o; }
-.oitem { display: flex; align-items: center; gap: .6rem; background: #fff; border: 3px solid var(--line); border-radius: 14px; padding: .4rem .6rem; min-height: 56px; font-size: 1.15rem; touch-action: none; }
+.oitem { display: flex; align-items: center; gap: .6rem; background: #fff; border: 3px solid var(--line); border-radius: 14px; padding: .4rem .6rem; min-height: 56px; font-size: 1.15rem; touch-action: manipulation; }
 .oitem::before { counter-increment: o; content: counter(o) '.'; font-weight: 700; color: var(--muted); }
 .oitem .olabel { flex: 1; } .grip { cursor: grab; font-size: 1.3rem; color: var(--muted); padding: .3rem; touch-action: none; } .oitem.dragging { z-index: 5; box-shadow: 0 8px 20px rgba(0,0,0,.2); border-color: var(--blue); }
 .mv { border: 2px solid var(--line); background: #f8fafc; border-radius: 10px; min-width: 44px; min-height: 44px; }
@@ -137,7 +137,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 1rem; outline: none; }
 .binrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .6rem; }
 .bin { border: 3px solid var(--blue-l); border-radius: 14px; background: #f7fbfe; min-height: 120px; padding: .5rem; }
 .bintitle { font-weight: 700; margin-bottom: .4rem; } .bincards { display: flex; flex-wrap: wrap; gap: .4rem; }
-.card { } .w-bins .card { padding: .4rem .7rem; border: 3px solid var(--line); border-radius: 12px; background: #fff; min-height: 48px; min-width: 56px; font-size: 1.05rem; touch-action: none; box-shadow: none; }
+.card { } .w-bins .card { padding: .4rem .7rem; border: 3px solid var(--line); border-radius: 12px; background: #fff; min-height: 48px; min-width: 56px; font-size: 1.05rem; touch-action: manipulation; box-shadow: none; }
 .w-bins .card.picked { border-color: #ff8c00; background: #fff4e5; } .w-bins .card.dragging { z-index: 5; box-shadow: 0 8px 20px rgba(0,0,0,.2); }
 .w-bins .card svg { max-height: 80px; }
 .w-match { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; } .mcol { display: flex; flex-direction: column; gap: .5rem; }
@@ -215,7 +215,7 @@ fieldset.card { margin: .6rem 0; } fieldset label.row { display: flex; gap: .5re
 
 /* ---------- overlays ---------- */
 .overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, .45); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 1rem; }
-.modal { background: #fff; border-radius: 20px; max-width: 520px; width: 100%; padding: 1.2rem; text-align: center; max-height: 90vh; overflow: auto; } .modal.wide { max-width: 760px; text-align: left; }
+.modal { background: #fff; border-radius: 20px; max-width: 520px; width: 100%; padding: 1.2rem; text-align: center; max-height: 90vh; max-height: 88dvh; overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; } .modal.wide { max-width: 760px; text-align: left; }
 .mbtns { display: flex; gap: .6rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }
 .mbtns .btn.primary { order: -1; }
 .worked { background: #f8fafc; border-radius: 12px; padding: .8rem; }
@@ -332,3 +332,4 @@ body.contrast .mathkeys .mk { background: #fff; border-color: #000; }
 .playbar .nextstar { width: 100%; flex-basis: 100%; margin: .1rem 0 0; }
 body.contrast .nextstar { color: #000; }
 .xpnext { font-size: .9rem; color: var(--muted); white-space: nowrap; }
+.w-bins .tip { margin: 0 0 .4rem; font-size: .85rem; color: var(--muted); }

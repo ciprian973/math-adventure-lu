@@ -1871,6 +1871,7 @@ window.I18N_DATA["en"] = {
  "ui.barsHelp": "Chart: arrows left/right choose a bar, up/down change its height.",
  "ui.because": "Because …",
  "ui.bestSoFar": "Your best so far: {n}",
+ "ui.binsTip": "Tap a card, then tap the group where it belongs. Tap it again to take it back.",
  "ui.blitzNote": "Only you can see your record. Speed is a bonus — understanding comes first.",
  "ui.blitzScore": "You solved [[n|one:# exercise|other:# exercises]] in 2 minutes.",
  "ui.boss": "Region challenge",

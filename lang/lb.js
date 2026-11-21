@@ -1871,6 +1871,7 @@ window.I18N_DATA["lb"] = {
  "ui.barsHelp": "Diagramm: Feiler lénks/riets wielen eng Säul, uewen/ënne verännere d'Héicht.",
  "ui.because": "Well …",
  "ui.bestSoFar": "Däi bescht Resultat bis elo: {n}",
+ "ui.binsTip": "Tipp op eng Kaart an dann op de Grupp, wou se higehéiert. Tipp nach eng Kéier drop, fir se zréckzehuelen.",
  "ui.blitzNote": "Nëmmen du gesäis däi Rekord. Tempo ass e Bonus — Verstoe kënnt als éischt.",
  "ui.blitzScore": "Du hues [[n|one:# Aufgab|other:# Aufgaben]] an 60 Sekonne geléist.",
  "ui.boss": "Grousst Finale",

@@ -1871,6 +1871,7 @@ window.I18N_DATA["fr"] = {
  "ui.barsHelp": "Diagramme : flèches gauche/droite pour choisir une barre, haut/bas pour sa hauteur.",
  "ui.because": "Parce que …",
  "ui.bestSoFar": "Ton meilleur score : {n}",
+ "ui.binsTip": "Touche une carte, puis le groupe où elle va. Touche-la encore pour la reprendre.",
  "ui.blitzNote": "Toi seul vois ton record. La vitesse est un bonus — comprendre passe avant.",
  "ui.blitzScore": "Tu as réussi [[n|one:# exercice|other:# exercices]] en 2 minutes.",
  "ui.boss": "Grand défi",
