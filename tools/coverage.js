@@ -4,7 +4,7 @@
  * template declares. Run: node tools/coverage.js */
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..'); global.window = global;
-['lang/fr.js','lang/en.js','js/core/core.js','js/core/i18n.js','js/core/numwords.js','js/core/expr.js','js/core/check.js','js/figures/figures.js','js/data/curriculum.js','js/data/map.js','js/templates/registry.js','js/templates/no_numbers.js','js/templates/no_operations.js','js/templates/ef_geometry.js','js/templates/gm_measures.js','js/templates/rp_problems.js'].forEach(f => vm.runInThisContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), { filename: f }));
+['lang/fr.js','lang/en.js','js/core/core.js','js/core/i18n.js','js/core/numwords.js','js/core/expr.js','js/core/check.js','js/figures/figures.js','js/data/curriculum.js','js/data/map.js','js/templates/registry.js','js/templates/no_numbers.js','js/templates/no_operations.js','js/templates/ef_geometry.js','js/templates/gm_measures.js','js/templates/rp_problems.js', 'js/templates/extreme.js'].forEach(f => vm.runInThisContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), { filename: f }));
 const C = MQ.CURRICULUM, T = MQ.T.list;
 const WT = { input: 'numeric input', mc: 'multiple choice', multi: 'multi-select', order: 'ordering', bins: 'drag & drop sorting', match: 'matching', shade: 'fraction bars/pies', numberline: 'number line', point: 'grid: place points', cells: 'grid drawing', tf: 'true/false + justification', mistake: 'find the mistake', bars: 'build a chart' };
 const info = {}; T.forEach(tp => { const types = new Set(), lv = new Set(); let word = false;

@@ -9,7 +9,7 @@ global.window = global; // the app's files attach to window
 const files = ['lang/fr.js', 'lang/de.js', 'lang/lb.js', 'lang/en.js', 'lang/ro.js',
   'js/core/core.js', 'js/core/i18n.js', 'js/core/numwords.js', 'js/core/expr.js', 'js/core/check.js', 'js/figures/figures.js',
   'js/data/curriculum.js', 'js/data/map.js', 'js/data/badges.js', 'js/templates/registry.js', 'js/templates/no_numbers.js', 'js/templates/no_operations.js',
-  'js/templates/ef_geometry.js', 'js/templates/gm_measures.js', 'js/templates/rp_problems.js', 'js/game/game.js', 'tools/selftest-core.js'];
+  'js/templates/ef_geometry.js', 'js/templates/gm_measures.js', 'js/templates/rp_problems.js', 'js/templates/extreme.js', 'js/game/game.js', 'tools/selftest-core.js'];
 files.forEach(f => vm.runInThisContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), { filename: f }));
 const n = +process.argv[2] || 1000;
 const lines = [];

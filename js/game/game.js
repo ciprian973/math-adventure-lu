@@ -38,7 +38,10 @@
     deleteProfile(id) { G.data.profiles = G.data.profiles.filter(p => p.id !== id); if (G.data.active === id) G.data.active = null; G.save(); },
 
     /* ---- per-stage state ---- */
-    stage(p, sid) { if (!p.stages[sid]) p.stages[sid] = { level: 1, auto: true, attempts: 0, correct: 0, byLevel: { 1: { c: 0, a: 0 }, 2: { c: 0, a: 0 }, 3: { c: 0, a: 0 }, 4: { c: 0, a: 0 } }, recent: [], suggested: 0 }; return p.stages[sid]; },
+    stage(p, sid) { if (!p.stages[sid]) p.stages[sid] = { level: 1, auto: true, attempts: 0, correct: 0, byLevel: { 1: { c: 0, a: 0 }, 2: { c: 0, a: 0 }, 3: { c: 0, a: 0 }, 4: { c: 0, a: 0 }, 5: { c: 0, a: 0 } }, recent: [], suggested: 0 }; const s = p.stages[sid]; if (!s.byLevel[5]) s.byLevel[5] = { c: 0, a: 0 }; return s; },
+    /* level 5 (extreme) opens when the topic has all 3 stars */
+    extremeOpen(p, sid) { return G.stars(p, sid) >= 3 && MQ.T.forStage(sid, 5).length > 0; },
+    extremeCount(p) { return Object.values(p.stages).reduce((a, s) => a + ((s.byLevel || {})[5] || { c: 0 }).c, 0); },
     stars(p, sid) {
       const s = p.stages[sid]; if (!s) return 0; const b = s.byLevel;
       let st = 0; if (s.correct >= 5) st = 1;
@@ -69,14 +72,15 @@
     record(p, ex, ctx) {
       // ctx: { stage, correct, tries, hints, ms, fb, mode }
       const ev = { xp: 0, levelUp: false, suggestUp: false, dropDown: false, newBadges: [], questDone: false };
-      const sid = ctx.stage; const st = G.stage(p, sid); const L = ex.level;
+      const sid = ctx.stage; const st = G.stage(p, sid); const L = ex.level; if (!st.byLevel[L]) st.byLevel[L] = { c: 0, a: 0 };
       const firstTry = ctx.tries === 1;
       const starsBefore = G.stars(p, sid);
       st.attempts++; st.byLevel[L].a++; p.stats.attempts++;
       if (ctx.correct) { st.correct++; st.byLevel[L].c++; p.stats.correct++; }
       ev.starUp = G.stars(p, sid) > starsBefore ? G.stars(p, sid) : 0;
+      ev.extremeOpened = ev.starUp === 3 && G.extremeOpen(p, sid);
       // XP: learning first — never negative
-      let xp = ctx.correct ? 5 + 5 * L : 0;            // XP only for correct answers (no reward for guessing)
+      let xp = ctx.correct ? (L === 5 ? 40 : 5 + 5 * L) : 0;            // XP only for correct answers (no reward for guessing)
       if (ctx.correct && !firstTry) { xp = Math.ceil(xp / 2); p.stats.retrySuccess++; }
       if (ctx.hints && xp) xp = Math.max(1, Math.ceil(xp * (1 - 0.2 * ctx.hints)));
       if (ctx.mode === 'boss') xp += ctx.correct ? 5 : 0;
@@ -93,12 +97,12 @@
       p.history.push({ d: today(), t: ex.tpl, L, ok: ctx.correct ? (firstTry ? 1 : 2) : 0, h: ctx.hints || 0, ms, s: sid, f: ctx.fb ? ctx.fb.k : null });
       if (p.history.length > 800) p.history.splice(0, p.history.length - 800);
       // adaptive (only in practice mode and when automatic levels are on)
-      if (ctx.mode === 'practice') {
+      if (ctx.mode === 'practice' && L <= 4) {
         st.recent.push({ L, ok: ctx.correct && firstTry ? 1 : 0 }); if (st.recent.length > 8) st.recent.shift();
         const atL = st.recent.filter(r => r.L === L);
         const last4 = atL.slice(-4);
         if (st.auto && L < 4 && last4.length === 4 && last4.every(r => r.ok) && st.suggested !== st.attempts) { ev.suggestUp = true; st.suggested = st.attempts; }
-        if (st.auto && L > 1 && last4.length >= 3 && last4.filter(r => !r.ok).length >= 3) { ev.dropDown = true; st.level = L - 1; st.recent = []; }
+        if (st.auto && L > 1 && L <= 4 && last4.length >= 3 && last4.filter(r => !r.ok).length >= 3) { ev.dropDown = true; st.level = L - 1; st.recent = []; }
       }
       // daily streak
       const t = today(); if (p.streak.last !== t) { p.streak.days = p.streak.last && dayDiff(p.streak.last, t) === 1 ? p.streak.days + 1 : 1; p.streak.last = t; p.stats.bestStreak = Math.max(p.stats.bestStreak || 0, p.streak.days); }

@@ -8,6 +8,7 @@
  *     objectives: ['NO.1.2'],       // curriculum ids (data/curriculum.js)
  *     mt: ['MT.11'],                // MathemaTIC ids (optional)
  *     gen(r, L) { … return ex; }    // r = seeded RNG, L = level 1..4
+ *     levels: [5]                   // optional; [5] = an extreme problem (level 5 only)
  *   });
  *   Then add the strings t.my_tpl.title / .q / .h1 / .h2 / .h3 / .ex
  *   to every lang/*.js file and run the self-test.
@@ -32,7 +33,10 @@
       list.push(def); byId[def.id] = def;
       return def;
     },
-    forStage(stage) { return list.filter(t => [].concat(t.stage).includes(stage) || (t.stages || []).includes(stage)); },
+    /* templates of a stage; without L only the ordinary ones (levels 1–4),
+     * with L only those that have that level (L = 5: the extreme problems) */
+    forStage(stage, L) { return list.filter(t => ([].concat(t.stage).includes(stage) || (t.stages || []).includes(stage)) && (L == null ? t.levels.some(x => x <= 4) : t.levels.includes(L))); },
+    extreme() { return list.filter(t => t.levels.includes(5)); },
     /* generate one exercise; seed makes it reproducible */
     make(id, level, seed) {
       const def = byId[id]; const r = MQ.RNG(seed);

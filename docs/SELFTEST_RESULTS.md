@@ -1,9 +1,9 @@
 # Self-test results
 
-Run: 2026-11-21T16:07:04.709Z · Node v22.23.5
+Run: 2026-11-21T16:48:35.178Z · Node v22.23.5
 
 ```
-Templates: 97 · instances: 388000 (1000 per template and level) · 5 languages each · 82.9 s
+Templates: 124 · instances: 415000 (1000 per template and level) · 5 languages each · 79.8 s
 Errors: 0
 Plan d'études objectives/contents without template: none
 MathemaTIC items without template: MT.90 (4.2)
@@ -108,3 +108,30 @@ MathemaTIC items without template: MT.90 (4.2)
 | rp_compare | 4000 | 0 |
 | rp_hypo | 4000 | 0 |
 | rp_verify | 4000 | 0 |
+| x_no_big | 1000 | 0 |
+| x_no_dec | 1000 | 0 |
+| x_no_frac | 1000 | 0 |
+| x_no_equiv | 1000 | 0 |
+| x_no_calc | 1000 | 0 |
+| x_no_ops | 1000 | 0 |
+| x_no_check | 1000 | 0 |
+| x_no_struct | 1000 | 0 |
+| x_no_data | 1000 | 0 |
+| x_ef_coord | 1000 | 0 |
+| x_ef_angles | 1000 | 0 |
+| x_ef_shapes | 1000 | 0 |
+| x_ef_solids | 1000 | 0 |
+| x_ef_sym | 1000 | 0 |
+| x_ef_area | 1000 | 0 |
+| x_ef_volume | 1000 | 0 |
+| x_gm_length | 1000 | 0 |
+| x_gm_masscap | 1000 | 0 |
+| x_gm_time | 1000 | 0 |
+| x_gm_money | 1000 | 0 |
+| x_gm_units | 1000 | 0 |
+| x_gm_data | 1000 | 0 |
+| x_rp_analyse | 1000 | 0 |
+| x_rp_solve | 1000 | 0 |
+| x_rp_prop | 1000 | 0 |
+| x_rp_open | 1000 | 0 |
+| x_rp_check | 1000 | 0 |

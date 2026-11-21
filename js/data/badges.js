@@ -41,7 +41,8 @@
     ['persistent', '💪', [10, 40, 100, 250, 500], p => p.stats.retrySuccess || 0],
     ['lightning', '⚡', [5, 8, 11, 14, 18], p => Math.max(0, ...Object.values(p.blitz || {}))],
     ['setMaster', '📚', [1, 3, 8, 20, 40], p => p.stats.setsDone || 0],
-    ['explorer', '🧭', [3, 9, 15, 21, 27], (p, G) => MQ.MAP.regions.flatMap(r => r.stages).filter(s => G.stars(p, s) >= 1).length]
+    ['explorer', '🧭', [3, 9, 15, 21, 27], (p, G) => MQ.MAP.regions.flatMap(r => r.stages).filter(s => G.stars(p, s) >= 1).length],
+    ['summit', '🏔️', [1, 5, 15, 40, 100], p => Object.values(p.stages).reduce((a, s) => a + ((s.byLevel || {})[5] || { c: 0 }).c, 0)]
   ];
   COUNT.forEach(([id, icon, th, value]) => fam.push({ id, cat: 'effort', icon, nameKey: (['daily5', 'persistent', 'explorer'].includes(id) ? 'badge.' : 'badgef.') + id, thresholds: th, value, test: (p, G, t) => value(p, G) >= th[t - 1] }));
   // 4. region challenges

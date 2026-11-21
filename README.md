@@ -17,6 +17,15 @@ Progress is stored in the browser's `localStorage` on that device only. Each pro
 
 For every one of the 97 templates and each of its 4 levels the self-test generates 1000 random instances (388,000 in total) and checks, in all five languages: generation never fails; three hints, an explanation and an answer exist; the computed answer, typed with that language's decimal separator, is accepted; equivalent forms are accepted (1/2 for 0,5, "12 345" for 12345, "35 cm²" with its unit, "3.5" for 3,5 in FR/DE/LB/RO); the typical wrong answers the template knows about are rejected; multiple-choice questions have exactly one correct option and no two options look the same in any language; declared value ranges hold; template self-checks hold (e.g. every cube net is verified by folding it); no text contains a missing translation, an unresolved placeholder, `undefined` or `NaN`; counts agree with their noun in every language (no "1 squares", and in Romanian "20 de minute" but "101 minute"). It also checks that the five language files have the same keys and the same placeholders, and that every curriculum objective has at least one template.
 
+## Level 5 — Extreme, and the Kneiff summit
+
+Every topic has a fifth level, **Extreme**: very hard problems that still need only cycle 4 knowledge, but patience, a drawing, trying small cases and checking (counting digits and paths, working backwards, hidden digits, clock angles, painted cubes, hens and rabbits, who is lying…). There are 2–3 kinds of problem per topic (59 kinds in all), each with new numbers every time, three graded hints, an explanation with the actual numbers, and feedback for the typical wrong idea where there is one.
+
+- Level 5 of a topic opens when the topic has all 3 stars; the automatic level choice never moves a child there, and wrong answers there never lower the level.
+- The **Kneiff summit** (the highest point of Luxembourg) on the map mixes the extreme problems of every topic that is open, and lets the child practise one open topic at a time.
+- A correct extreme answer gives 40 XP; the badge family *Kneiff Climber* counts them (1, 5, 15, 40, 100).
+- Answers are found by trying every case wherever possible (enumeration), so they are right by construction; `node tools/selftest.js` checks them like every other exercise, and every kind was also re-checked by an independent script that recomputes the answer from the numbers in the statement (simulation, counting, calendar dates).
+
 ## Symbol keys under the answer box
 
 Number keyboards on phones and tablets have no fraction bar, brackets or ×, so every answer box has a row of buttons that type them: fraction bar, ( ), +, −, ×, :, =, the decimal comma (point in English), and a delete key; time boxes get ":" and date boxes ".". The buttons only type symbols — nothing is computed for the pupil, it is not a calculator. A fraction typed as 3/4 is shown stacked underneath so the child sees what was written.
