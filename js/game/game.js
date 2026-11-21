@@ -46,6 +46,15 @@
       if (st >= 2 && b[4].c >= 3) st = 3;
       return st;
     },
+    /* what is still missing for the next star of a topic (null when all 3 are there):
+     * { star: 1|2|3, need: correct answers still needed, level: 0 (any) | 3 (level 3 or 4) | 4 } */
+    nextStar(p, sid) {
+      const n = G.stars(p, sid); if (n >= 3) return null;
+      const s = p.stages[sid], b = s ? s.byLevel : { 3: { c: 0 }, 4: { c: 0 } }, c = s ? s.correct : 0;
+      if (n === 0) return { star: 1, need: Math.max(1, 5 - c), level: 0 };
+      if (n === 1) return { star: 2, need: Math.max(1, 4 - b[3].c - b[4].c), level: 3 };
+      return { star: 3, need: Math.max(1, 3 - b[4].c), level: 4 };
+    },
     regionStars(p, r) { return r.stages.reduce((a, s) => a + G.stars(p, s), 0); },
 
     /* ---- personal leagues (by total XP; no ranking against other children) ---- */
@@ -62,8 +71,10 @@
       const ev = { xp: 0, levelUp: false, suggestUp: false, dropDown: false, newBadges: [], questDone: false };
       const sid = ctx.stage; const st = G.stage(p, sid); const L = ex.level;
       const firstTry = ctx.tries === 1;
+      const starsBefore = G.stars(p, sid);
       st.attempts++; st.byLevel[L].a++; p.stats.attempts++;
       if (ctx.correct) { st.correct++; st.byLevel[L].c++; p.stats.correct++; }
+      ev.starUp = G.stars(p, sid) > starsBefore ? G.stars(p, sid) : 0;
       // XP: learning first — never negative
       let xp = ctx.correct ? 5 + 5 * L : 0;            // XP only for correct answers (no reward for guessing)
       if (ctx.correct && !firstTry) { xp = Math.ceil(xp / 2); p.stats.retrySuccess++; }

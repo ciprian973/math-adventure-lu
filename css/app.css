@@ -327,3 +327,8 @@ body.contrast .hero, body.contrast .maptop.banner { background: #fff; }
 .kprev.on { display: block; }
 @media (max-width: 380px) { .mathkeys .mk { min-width: 40px; min-height: 42px; font-size: 1.15rem; padding: 0 .4rem; } .mathkeys { gap: .25rem; } }
 body.contrast .mathkeys .mk { background: #fff; border-color: #000; }
+/* what is missing for the next star */
+.nextstar { margin: .25rem 0; font-size: .95rem; font-weight: 600; color: var(--warn); }
+.playbar .nextstar { width: 100%; flex-basis: 100%; margin: .1rem 0 0; }
+body.contrast .nextstar { color: #000; }
+.xpnext { font-size: .9rem; color: var(--muted); white-space: nowrap; }

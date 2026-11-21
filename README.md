@@ -23,6 +23,10 @@ Number keyboards on phones and tablets have no fraction bar, brackets or ×, so 
 
 The pupil may type only the result or the whole calculation ending with "=" and the result (`12 × 5 = 60`, `(2 + 3) × 4 = 20`). The result after the last "=" is what is checked. Every earlier part that can be computed must have the same value, so the classic misuse of "=" as "and then" (`5 × 4 = 20 + 3 = 23`) is rejected with an explanation of what "=" means. A calculation without "=" and a result gets a message asking for the result.
 
+## Stars per topic
+
+Each topic has 3 stars: 5 correct answers at any level, then 4 correct at level 3 or 4, then 3 correct at level 4. The topic card and the practice screen say how many correct answers are still missing for the next star, and a short message celebrates each new star. After every correct answer the feedback also says how many XP are missing for the next player level.
+
 ## Léo, leagues and rewards
 
 Each child dresses up their own lion: boy or girl, fur colour, accessories, a frame and a background. Most items unlock with the player level (some only at level 20–30, so they take real effort); seasonal frames (winter, spring, summer, autumn, Christmas, Halloween, or "season of today", which changes by itself with the calendar), Luxembourg National Day and Schueberfouer frames, and special frames for each league. Leagues (Bronze, Silver, Gold, Platinum, Diamond, Legend) follow the XP a child has collected; they show personal progress only — there is no ranking against other children. The lion also sits on the read-aloud button.

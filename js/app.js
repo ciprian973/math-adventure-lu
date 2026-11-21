@@ -16,6 +16,11 @@
   let current = { screen: 'profiles', params: {} };
   let player = null;
 
+  /* "3 more correct answers at level 3 or 4 to the second star" */
+  function nextStarText(p, sid) {
+    const ns = MQ.game.nextStar(p, sid);
+    return ns ? '⭐ ' + t('star.next' + ns.star, { n: ns.need }) : '🌟 ' + t('star.all');
+  }
   const App = MQ.app = {
     init() {
       G.load(); const s = G.settings();
@@ -198,7 +203,7 @@
       r.stages.forEach(sid => {
         const st = G.stage(p, sid), n = G.stars(p, sid), assigned = p.assigned.includes(sid);
         const c = h('div', { class: 'stage card' + (assigned ? ' assigned' : '') });
-        c.innerHTML = `<h3>${t('stage.' + sid)} ${assigned ? '🚩' : ''}</h3><p class="sdesc">${t('stage.' + sid + '.d')}</p>${stars(n)}<p class="small">${t('ui.levelNow', { l: { k: LEVEL_KEYS[st.level] } })} · ${t('ui.doneCount', { n: st.correct })}</p>`;
+        c.innerHTML = `<h3>${t('stage.' + sid)} ${assigned ? '🚩' : ''}</h3><p class="sdesc">${t('stage.' + sid + '.d')}</p>${stars(n)}<p class="nextstar">${nextStarText(p, sid)}</p><p class="small">${t('ui.levelNow', { l: { k: LEVEL_KEYS[st.level] } })} · ${t('ui.doneCount', { n: st.correct })}</p>`;
         const row = h('div', { class: 'brow' });
         const play = h('button', { class: 'btn primary', type: 'button' }, '▶ ' + t('ui.practise')); play.onclick = () => App.go('play', { stage: sid, mode: 'practice' });
         const used = G.blitzUsedToday(p, sid); const blitz = h('button', { class: 'btn', type: 'button', title: used ? t('ui.timedDoneTitle') : t('ui.timedTitle') }, used ? '⏱ ' + t('ui.timedDone') : '⏱ ' + t('ui.timed')); blitz.disabled = used; blitz.onclick = () => { if (G.blitzUsedToday(p, sid)) { App.toast(t('ui.timedDoneTitle')); return; } App.go('play', { stage: sid, mode: 'blitz' }); };
@@ -382,6 +387,7 @@
         [1, 2, 3, 4].forEach(L => { const b = h('button', { type: 'button', class: 'lvlb' + (ex.level === L ? ' sel' : ''), role: 'radio', 'aria-checked': ex.level === L, title: t(LEVEL_KEYS[L] + '.d') }, `${L}<span class="lvname"> · ${t(LEVEL_KEYS[L])}</span>`); b.setAttribute('aria-label', `${L} · ${t(LEVEL_KEYS[L])}`); b.onclick = () => { st.level = L; st.auto = false; st.recent = []; G.save(); this.next(false, true); }; lv.appendChild(b); });
         const auto = h('label', { class: 'auto' }, `<input type="checkbox" ${st.auto ? 'checked' : ''}> ${t('ui.autoLevel')}`); auto.querySelector('input').onchange = e => { st.auto = e.target.checked; G.save(); };
         lv.appendChild(auto); bar.appendChild(lv);
+        bar.appendChild(h('p', { class: 'nextstar', 'aria-live': 'polite' }, nextStarText(this.p, this.stage)));
       }
       if (this.mode === 'blitz') bar.appendChild(h('div', { class: 'timer', 'aria-live': 'off' }, '⏱ ' + Math.max(0, Math.ceil(((this.deadline || Date.now() + BLITZ_MS) - Date.now()) / 1000)) + ' s'));
       if (this.mode === 'blitz' || this.mode === 'boss') bar.appendChild(h('div', { class: 'score' }, t('ui.score', { n: this.score })));
@@ -435,7 +441,7 @@
       if (this.done) return;
       const lang = MQ.i18n.lang; const resp = this.widget.get();
       let res; try { res = MQ.check(this.ex, resp, lang); } catch (e) { console.error(e); res = { correct: false, fb: null }; }
-      if (!res.correct && res.fb && ['fb.empty', 'fb.chooseOne', 'fb.notNumber', 'fb.timeFormat', 'fb.dateFormat', 'fb.binsIncomplete', 'fb.onePoint'].includes(res.fb.k) && this.mode !== 'blitz') {
+      if (!res.correct && res.fb && ['fb.empty', 'fb.chooseOne', 'fb.notNumber', 'fb.timeFormat', 'fb.dateFormat', 'fb.binsIncomplete', 'fb.onePoint', 'fb.onlyResult'].includes(res.fb.k) && this.mode !== 'blitz') {
         // formal problem, not a mathematical mistake: does not count as a try
         this.lastRes = { kind: 'formal', fb: res.fb }; this.showFeedback(this.lastRes); return;
       }
@@ -467,6 +473,8 @@
       this.widget.lock(); this.widget.reveal && !correct && this.widget.reveal();
       this.showFeedback(this.lastRes); this.saveCur(); this.updateButtons(); App.header();
       if (ev.leagueUp) setTimeout(() => { const lg = G.LEAGUES[ev.leagueUp]; MQ.audio.play('badge'); App.confetti(); App.modal(`<div class="leagueup"><div class="lgicon">${lg.icon}</div><h2>${t('ui.leagueUpTitle')}</h2><p>${t('ui.leagueUp', { l: { k: 'league.' + lg.id } })}</p>${MQ.MAP.avatar.frame.some(f => f.league === ev.leagueUp) ? `<p class="small">${t('ui.leagueFrame')}</p>` : ''}</div>`, [{ label: t('ui.letsGo'), cls: 'primary' }]); }, 400);
+      { const ns = this.main.querySelector('.playbar .nextstar'); if (ns) ns.innerHTML = nextStarText(this.p, this.stage); }
+      if (ev.starUp) { MQ.audio.play('level'); App.toast('🌟 ' + t('star.won' + ev.starUp, { s: { k: 'stage.' + this.stage } })); }
       if (ev.levelUp) { MQ.audio.play('level'); App.toast(`⭐ ${t('ui.levelUp', { n: G.levelOf(this.p.xp) })}`); }
       ev.newBadges.forEach(b => { MQ.audio.play('badge'); const bt = MQ.badgeText(b); App.toast(`🏅 ${t('ui.newBadge', { b: { raw: bt.name + (bt.tierName ? ' · ' + bt.tierName : '') } })}`); });
       { const big = ev.newBadges.map(b => MQ.badgeText(b)).filter(bt => bt.tier >= 3).sort((a, b) => b.tier - a.tier)[0]; if (big) setTimeout(() => { App.confetti(); App.modal(`<div class="badgeinfo">${MQ.medal(big.tier, big.icon, 140)}<h2>${big.name} <small>· ${big.tierName}</small></h2><p>${big.desc}</p></div>`, [{ label: t('ui.letsGo'), cls: 'primary' }]); }, 600); }
@@ -485,7 +493,7 @@
       const ex = this.ex; const fb = this.fbEl; fb.className = 'feedback ' + r.kind; let html = '';
       if (r.kind === 'formal') html = `<p>${tm(r.fb)}</p>`;
       if (r.kind === 'retry') html = `${MQ.mascot(this.p.avatar, 56, 'think')}<div><p><b>${t('ui.notYet')}</b> ${r.fb ? tm(r.fb) : t('ui.tryAgain')}</p><p class="small">${t('ui.retryHint')}</p></div>`;
-      if (r.kind === 'ok') html = `${MQ.mascot(this.p.avatar, 56)}<div><p><b>${t(r.praise)}</b> <span class="xpgain">+${r.ev ? r.ev.xp : (r.xp || 0)} XP</span></p><p class="explain"><b>${t('ui.why')}</b> ${tm(ex.explain)}</p></div>`;
+      if (r.kind === 'ok') html = `${MQ.mascot(this.p.avatar, 56)}<div><p><b>${t(r.praise)}</b> <span class="xpgain">+${r.ev ? r.ev.xp : (r.xp || 0)} XP</span>${r.ev ? ` <span class="xpnext">${t('ui.xpToLevel', { n: G.levelRange(G.levelOf(this.p.xp))[1] - this.p.xp, l: G.levelOf(this.p.xp) + 1 })}</span>` : ''}</p><p class="explain"><b>${t('ui.why')}</b> ${tm(ex.explain)}</p></div>`;
       if (r.kind === 'solution') html = `${MQ.mascot(this.p.avatar, 56, 'think')}<div><p><b>${t('ui.letsSee')}</b> ${r.fb ? tm(r.fb) : ''}</p><p><b>${t('ui.answerIs')}</b> ${tm(ex.answer)}</p><p class="explain"><b>${t('ui.why')}</b> ${tm(ex.explain)}</p><p class="small">${t('ui.noProblem')}</p></div>`;
       fb.innerHTML = html;
     }
