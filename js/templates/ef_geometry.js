@@ -110,11 +110,15 @@
     id: 'map_route', stage: 'ef_coord', objectives: ['EF.1.2', 'EF.1.3', 'EF.1.4', 'EF.C9'], mt: ['MT.70'],
     gen(r, L) {
       const W = 10, H = 8; const icons = []; const used = new Set();
-      r.sample(PLACES, 6).forEach(type => { let p; do { p = [r.int(0, W), r.int(0, H)]; } while (used.has(p.join())); used.add(p.join()); icons.push({ type, x: p[0], y: p[1] }); });
-      const fig = lang => F.coord(W, H, { icons: icons.map(ic => ({ ...ic, label: MQ.t('place.' + ic.type, {}, lang) })) });
+      // places at least one empty square apart, so the icons never touch, and off the axes
+      const free = p => icons.every(ic => Math.abs(ic.x - p[0]) >= 2 || Math.abs(ic.y - p[1]) >= 2);
+      r.sample(PLACES, 6).forEach(type => { let p, g = 0; do { p = [r.int(1, W), r.int(1, H - 1)]; } while ((used.has(p.join()) || !free(p)) && ++g < 400); used.add(p.join()); icons.push({ type, x: p[0], y: p[1] }); });
+      // names go in a legend under the map: written on the map, long names ("bus stop") overlapped each other
+      const legend = lang => `<p class="legend">${icons.map(i => `<span>${F.svg(30, 30, F.icon(i.type, 15, 17), '')} ${MQ.t('place.' + i.type, {}, lang)}</span>`).join('')}</p>`;
+      const fig = lang => F.coord(W, H, { icons: icons.map(ic => ({ ...ic })) }) + legend(lang);
       if (L === 1) {
         const ic = r.pick(icons);
-        return { prompt: m('t.map_route.q1', { a: { raw: '(' + ic.x + ' ; ' + ic.y + ')' } }), figure: lang => F.coord(W, H, { icons: icons.map(i => ({ ...i })) }) + `<p class="legend">${icons.map(i => `<span>${F.svg(30, 30, F.icon(i.type, 15, 17), '')} ${MQ.t('place.' + i.type, {}, lang)}</span>`).join('')}</p>`,
+        return { prompt: m('t.map_route.q1', { a: { raw: '(' + ic.x + ' ; ' + ic.y + ')' } }), figure: fig,
           widget: { type: 'mc', options: r.shuffle(icons.slice(0, 4).concat(icons.slice(0, 4).includes(ic) ? [] : [ic]).slice(-4).map(i => ({ label: m('place.' + i.type), correct: i === ic }))) },
           answer: m('place.' + ic.type), explain: m('t.map_route.ex1') };
       }
@@ -124,7 +128,7 @@
         if (g >= 200) return this.gen(r, L);
         return {
           prompt: m('t.map_route.q2', { p: { k: 'place.' + from.type }, a: Math.abs(dx), d1: { k: dx > 0 ? 'dir.east' : 'dir.west' }, b: Math.abs(dy), d2: { k: dy > 0 ? 'dir.north' : 'dir.south' } }),
-          widget: { type: 'point', w: W, h: H, max: 1, targets: [[from.x + dx, from.y + dy]], iconsFn: lang => icons.map(ic => ({ ...ic, label: MQ.t('place.' + ic.type, {}, lang) })) },
+          figure: legend, widget: { type: 'point', w: W, h: H, max: 1, targets: [[from.x + dx, from.y + dy]], iconsFn: () => icons.map(ic => ({ ...ic })) },
           answer: m('c.coord', { x: from.x + dx, y: from.y + dy }), explain: m('t.map_route.ex2', { x: from.x + dx, y: from.y + dy })
         };
       }
@@ -157,9 +161,12 @@
       const kinds = ['acute', 'right', 'obtuse', 'straight'];
       const degOf = k => k === 'acute' ? r.int(2, 8) * 10 + r.pick([0, 5]) : k === 'right' ? 90 : k === 'obtuse' ? r.int(10, 17) * 10 + r.pick([0, 5]) : 180;
       if (L <= 2) {
-        const k = r.pick(L === 1 ? ['acute', 'right', 'obtuse'] : kinds); const d = Math.min(degOf(k), k === 'obtuse' ? 175 : 180);
+        // judged by eye: acute 20°–65°, obtuse 115°–165° (nothing that could pass for a right angle),
+        // and a right angle always carries its square mark, as in school drawings
+        const k = r.pick(L === 1 ? ['acute', 'right', 'obtuse'] : kinds);
+        const d = k === 'acute' ? r.int(4, 13) * 5 : k === 'obtuse' ? r.int(23, 33) * 5 : degOf(k);
         return {
-          prompt: m('t.angle_type.q'), figure: F.angle(d, { rot: L === 2 ? r.int(0, 8) * 10 : 0, arc: k !== 'right' || L === 1 }),
+          prompt: m('t.angle_type.q'), figure: F.angle(d, { rot: L === 2 ? r.int(0, 8) * 10 : 0, arc: true }),
           widget: { type: 'mc', options: kinds.map(kk => ({ label: m('ang.' + kk), correct: kk === k })) },
           answer: m('ang.' + k), explain: m('t.angle_type.ex.' + k)
         };
@@ -268,18 +275,28 @@
       return {
         prompt: m(L === 3 ? 't.lines.q3' : 't.lines.q4'),
         widget: { type: 'point', w: W, h: H, max: 1, given: [{ x: A[0], y: A[1], label: 'A' }, { x: B[0], y: B[1], label: 'B' }, { x: C[0], y: C[1], label: 'C' }], segs: [[A[0], A[1], B[0], B[1]]], check, canonical: () => [canon] },
-        answer: m('c.coordNamed', { n: 'D', x: canon[0], y: canon[1] }), explain: m(L === 3 ? 't.lines.ex3' : 't.lines.ex4'),
+        answer: m('c.coordNamed', { n: 'D', x: canon[0], y: canon[1] }),
+        explain: L === 3 ? m('t.lines.ex3', { ab: stepMsg(v), cd: stepMsg([canon[0] - C[0], canon[1] - C[1]]) }) : m('t.lines.ex4', { ab: stepMsg(v), cd: stepMsg([canon[0] - C[0], canon[1] - C[1]]) }),
         wrong: [{ points: [[C[0] + 1, C[1]]].filter(D => L === 4 || dot(v, [1, 0]) !== 0) }]
       };
     }
   });
 
+  /* "2 to the right and 1 up" for a grid step (x to the right, y up) */
+  function stepMsg(w) {
+    const x = w[0] ? { a: Math.abs(w[0]), d: { k: w[0] > 0 ? 'dir.right' : 'dir.left' } } : null, y = w[1] ? { a: Math.abs(w[1]), d: { k: w[1] > 0 ? 'dir.up' : 'dir.down' } } : null;
+    return x && y ? m('c.step2', { a: x.a, d1: x.d, b: y.a, d2: y.d }) : m('c.step1', x || y);
+  }
   /* ================= triangles, quadrilaterals, circle, constructions ====== */
   const TRI = {
     equi: () => [[0, 0], [4, 0], [2, 3.4641]],
-    iso: r => { const b = r.int(3, 5), h = r.int(2, 5); return [[0, 0], [b, 0], [b / 2, h]]; },
-    scal: r => { const p = r.pick([[[0, 0], [5, 0], [1.5, 3]], [[0, 0], [6, 0], [4.5, 2.5]], [[0, 0], [4, 0], [5.5, 3]], [[0, 0], [5, 0], [3.8, 2.2]]]); return p; },
-    right: r => { const a = r.int(2, 5); let b = r.intExcept(2, 5, [a]); return [[0, 0], [a, 0], [0, b]]; },
+    // base b, height h: no apex angle near 90° (it would look like an unmarked right angle) and the base clearly
+    // longer or shorter than the legs (otherwise it looks equilateral)
+    iso: r => { const [b, h] = r.pick([[3, 2], [3, 3], [3, 4], [3, 5], [4, 4], [4, 5], [5, 2], [5, 5]]); return [[0, 0], [b, 0], [b / 2, h]]; },
+    // scalene: two acute and two obtuse ones, every angle at least 12° away from a right angle
+    scal: r => r.pick([[[0, 0], [4, 0], [1, 4.5]], [[0, 0], [6, 0], [2.5, 4]], [[0, 0], [5, 0], [6.5, 3]], [[0, 0], [4, 0], [5, 2.5]]]),
+    // legs 2 and 5 are excluded: the long leg and the hypotenuse would look equal
+    right: r => { const a = r.int(2, 5); const b = r.intExcept(2, 5, [a].concat(a === 2 ? [5] : a === 5 ? [2] : [])); return [[0, 0], [a, 0], [0, b]]; },
     rightIso: r => { const a = r.int(3, 5); return [[0, 0], [a, 0], [0, a]]; }
   };
   const triFig = (type, r) => {
@@ -326,7 +343,9 @@
       const fig = F.shape(pts, { scale: 34, rightAngles: (type === 'square' || type === 'rect') ? [0, 1, 2, 3] : [], ticks: (type === 'square' || type === 'rhombus') ? [[0, 1], [1, 1], [2, 1], [3, 1]] : [] });
       if (L === 1) return { prompt: m('t.quad_classify.q1'), figure: fig, widget: { type: 'mc', options: Object.keys(QUADS).map(k => ({ label: m('quad.' + k), correct: k === type })) }, answer: m('quad.' + type), explain: m('t.quad_classify.ex.' + type) };
       if (L === 2) { const feats = ['f4right', 'f4equal', 'f2pairs', 'f1pair']; return { prompt: m('t.quad_classify.q2'), figure: fig, widget: { type: 'multi', options: feats.map(f => ({ label: m('t.quad_classify.' + f), correct: QFEAT[type].includes(f) })) }, answer: m('t.quad_classify.ans', { l: { list: QFEAT[type].map(f => m('t.quad_classify.' + f)), sep: ', ' } }), explain: m('t.quad_classify.ex.' + type) }; }
-      if (L === 3) return { prompt: m('t.quad_classify.q3'), figure: fig, widget: { type: 'multi', options: ['square', 'rect', 'rhombus', 'para', 'trap'].map(k => ({ label: m('quad.' + k), correct: QPROPS[type].includes(k) })) }, answer: m('t.quad_classify.ans', { l: { list: QPROPS[type].map(k => m('quad.' + k)), sep: ', ' } }), explain: m('t.quad_classify.ex3') };
+      // L3: whether a parallelogram also counts as a trapezium differs between school traditions
+      // (inclusive in French/German textbooks, exclusive in others), so 'trapezium' is offered only for a real trapezium
+      if (L === 3) return { prompt: m('t.quad_classify.q3'), figure: fig, widget: { type: 'multi', options: ['square', 'rect', 'rhombus', 'para'].concat(type === 'trap' ? ['trap'] : []).map(k => ({ label: m('quad.' + k), correct: QPROPS[type].includes(k) })) }, answer: m('t.quad_classify.ans', { l: { list: QPROPS[type].map(k => m('quad.' + k)), sep: ', ' } }), explain: m('t.quad_classify.ex3.' + type) };
       const st = r.pick([['s1', true], ['s2', false], ['s3', true], ['s4', false], ['s5', true]]);
       return { prompt: m('t.quad_classify.q4', { s: m('t.quad_classify.' + st[0]) }), widget: { type: 'tf', truth: st[1], reasons: r.shuffle([{ label: m('t.quad_classify.r.' + st[0]), correct: true }, { label: m('t.quad_classify.r.w1'), correct: false }, { label: m('t.quad_classify.r.w2'), correct: false }]) }, answer: m(st[1] ? 'c.true' : 'c.false'), explain: m('t.quad_classify.r.' + st[0]) };
     }
@@ -498,7 +517,8 @@
     gen(r, L) {
       const W = 10, H = 8;
       if (L === 1) { const k = r.int(3, 7), P = [r.intExcept(Math.max(0, 2 * k - W), Math.min(W, 2 * k), [k]), r.int(0, H)]; const P2 = [2 * k - P[0], P[1]]; return { prompt: m('t.sym_point.q1', { k }), widget: { type: 'point', w: W, h: H, max: 1, targets: [P2], given: [{ x: P[0], y: P[1], label: 'A' }], segs: [[k, 0, k, H, 'axis']] }, answer: m('c.coordNamed', { n: "A'", x: P2[0], y: P2[1] }), explain: m('t.sym_point.ex1', { d: Math.abs(P[0] - k) }) }; }
-      if (L === 2) { const dx = r.intExcept(-3, 4, [0]), dy = r.intExcept(-2, 3, [0]); let P; do { P = [r.int(0, W), r.int(0, H)]; } while (P[0] + dx < 0 || P[0] + dx > W || P[1] + dy < 0 || P[1] + dy > H); const S = [r.int(0, 3), 0]; return { prompt: m('t.sym_point.q2'), widget: { type: 'point', w: W, h: H, max: 1, targets: [[P[0] + dx, P[1] + dy]], given: [{ x: P[0], y: P[1], label: 'A' }], arrow: [S[0], 7, S[0] + dx, 7 + dy].map((v, i) => i % 2 ? Math.min(H, Math.max(0, v)) : v) }, answer: m('c.coordNamed', { n: "A'", x: P[0] + dx, y: P[1] + dy }), explain: m('t.sym_point.ex2', { a: Math.abs(dx), d1: { k: dx > 0 ? 'dir.right' : 'dir.left' }, b: Math.abs(dy), d2: { k: dy > 0 ? 'dir.up' : 'dir.down' } }) }; }
+      if (L === 2) { const dx = r.intExcept(-3, 4, [0]), dy = r.intExcept(-2, 3, [0]); let P; do { P = [r.int(0, W), r.int(0, H)]; } while (P[0] + dx < 0 || P[0] + dx > W || P[1] + dy < 0 || P[1] + dy > H); // the arrow is drawn whole, inside the grid (it used to be cut at the top edge, which changed its length)
+        const Sx = dx < 0 ? -dx + r.int(1, 2) : r.int(1, 2), Sy = dy > 0 ? H - dy : H; return { prompt: m('t.sym_point.q2'), widget: { type: 'point', w: W, h: H, max: 1, targets: [[P[0] + dx, P[1] + dy]], given: [{ x: P[0], y: P[1], label: 'A' }], arrow: [Sx, Sy, Sx + dx, Sy + dy] }, answer: m('c.coordNamed', { n: "A'", x: P[0] + dx, y: P[1] + dy }), explain: m('t.sym_point.ex2', { a: Math.abs(dx), d1: { k: dx > 0 ? 'dir.right' : 'dir.left' }, b: Math.abs(dy), d2: { k: dy > 0 ? 'dir.up' : 'dir.down' } }) }; }
       if (L === 3) { const O = [r.int(3, 7), r.int(3, 5)]; let P; do { P = [r.int(0, W), r.int(0, H)]; } while ((P[0] === O[0] && P[1] === O[1]) || 2 * O[0] - P[0] < 0 || 2 * O[0] - P[0] > W || 2 * O[1] - P[1] < 0 || 2 * O[1] - P[1] > H); const P2 = [2 * O[0] - P[0], 2 * O[1] - P[1]]; return { prompt: m('t.sym_point.q3'), widget: { type: 'point', w: W, h: H, max: 1, targets: [P2], given: [{ x: P[0], y: P[1], label: 'A' }, { x: O[0], y: O[1], label: 'O', cls: 'centre' }] }, answer: m('c.coordNamed', { n: "A'", x: P2[0], y: P2[1] }), explain: m('t.sym_point.ex3') }; }
       const dx = r.intExcept(-3, 4, [0]), dy = r.intExcept(-2, 2, [0]); const tri = [[r.int(1, 3), r.int(1, 3)]]; tri.push([tri[0][0] + r.int(2, 3), tri[0][1]], [tri[0][0] + r.int(0, 2), tri[0][1] + r.int(2, 3)]);
       const img = tri.map(p => [p[0] + dx, p[1] + dy]); if (img.some(p => p[0] < 0 || p[0] > W || p[1] < 0 || p[1] > H)) return this.gen(r, L);
@@ -512,11 +532,12 @@
     gen(r, L) {
       const kinds = L === 1 ? ['axial', 'translation'] : ['axial', 'central', 'translation'];
       const k = r.pick(kinds); const cols = 12, rows = 8;
-      const base = PENTA.map(([x, y]) => [x + r.int(0, 2), y + r.int(1, 3)]);
+      // one shift for the whole shape (a shift per cell would deform it)
+      const ox = r.int(0, 2), oy = r.int(1, 3); const base = PENTA.map(([x, y]) => [x + ox, y + oy]);
       let img;
       if (k === 'axial') img = base.map(([x, y]) => [cols - 1 - x, y]);
       else if (k === 'central') img = base.map(([x, y]) => [cols - 1 - x, rows - 1 - y]);
-      else { const dx = r.int(5, 8), dy = L === 4 ? r.int(-1, 0) : r.int(-1, 1); img = base.map(([x, y]) => [x + dx, y + dy]); }
+      else { const mx = Math.max(...base.map(c => c[0])); const dx = r.int(5, cols - 1 - mx), dy = L === 4 ? r.int(-1, 0) : r.int(-1, 1); img = base.map(([x, y]) => [x + dx, y + dy]); }
       const ids = cs => cs.map(c => c[0] + ',' + c[1]);
       const fig = F.cells(cols, rows, ids(base), { cell: 26, fixed: ids(img) });
       if (L === 4 && k === 'translation') {
@@ -598,7 +619,8 @@
       const pts = isTri ? [[0, h], [b, h], [s, 0]] : [[0, h], [b, h], [b + s, 0], [s, 0]];
       const slant = Math.round(Math.hypot(s, h) * 10) / 10;
       const fig = L === 3
-        ? lang => F.onGrid(pts, { grid: false, dash: [[[s, 0], [s, h]]], sideLabels: [{ i: 0, text: MQ.fmtNum(b, lang) + ' cm' }, { i: pts.length - 1, text: MQ.fmtNum(MQ.Q.of(String(slant)), lang) + ' cm' }], extra: `<text class="tx lbl" x="${30 + s * 30 + 6}" y="${30 + h * 15}">${MQ.fmtNum(h, lang)} cm</text>` })
+        // shifted 2 squares to the right: room on the left for the label of the slanted side
+        ? lang => F.onGrid(pts.map(([x, y]) => [x + 2, y]), { grid: false, gw: Math.max(...pts.map(p => p[0])) + 3, dash: [[[s + 2, 0], [s + 2, h]]], sideLabels: [{ i: 0, text: MQ.fmtNum(b, lang) + ' cm' }, { i: pts.length - 1, text: MQ.fmtNum(MQ.Q.of(String(slant)), lang) + ' cm' }], extra: `<text class="tx lbl" x="${30 + (s + 2) * 30 + 6}" y="${30 + h * 15}">${MQ.fmtNum(h, lang)} cm</text>` })
         : F.onGrid(pts, { dash: [[[s, 0], [s, h]]] });
       return {
         prompt: m(isTri ? (L === 3 ? 't.area_tri_para.q3t' : 't.area_tri_para.qt') : (L === 3 ? 't.area_tri_para.q3p' : 't.area_tri_para.qp')), figure: fig,
@@ -677,10 +699,10 @@
     gen(r, L) {
       const a = r.int(2, L === 1 ? 4 : 12), b = r.int(2, L === 1 ? 3 : 10), c = r.int(1, L === 1 ? 3 : 9);
       if (L === 1) return { prompt: m('t.volume.q1'), figure: F.cuboidCubes(a, b, c), widget: { type: 'input', fields: [field('a', new MQ.Q(a * b * c), { unit: 'cm3' })] }, answer: m('c.unitv', { x: { unit: 'cm3', val: new MQ.Q(a * b * c) } }), explain: m('t.volume.ex1', { a, b, c, x: a * b * c }) };
-      if (L === 2) return { prompt: m('t.volume.q2', { a: cm(a), b: cm(b), c: cm(c) }), figure: F.solid('cuboid'), widget: { type: 'input', fields: [field('a', new MQ.Q(a * b * c), { unit: 'cm3' })] }, diagnose: v => v.a && v.a.eq(a + b + c) ? m('t.volume.m.add') : (v.a && v.a.eq(2 * (a * b + b * c + a * c)) ? m('t.volume.m.surface') : null), answer: m('c.unitv', { x: { unit: 'cm3', val: new MQ.Q(a * b * c) } }), explain: m('t.volume.ex2', { a, b, c, x: a * b * c }), wrong: a + b + c !== a * b * c ? [{ fields: { a: String(a + b + c) } }] : [] };
+      if (L === 2) return { prompt: m('t.volume.q2', { a: cm(a), b: cm(b), c: cm(c) }), figure: lang => F.box(a, b, c, { labels: [a, b, c].map(v => MQ.fmtNum(v, lang) + ' cm') }), widget: { type: 'input', fields: [field('a', new MQ.Q(a * b * c), { unit: 'cm3' })] }, diagnose: v => v.a && v.a.eq(a + b + c) ? m('t.volume.m.add') : (v.a && v.a.eq(2 * (a * b + b * c + a * c)) ? m('t.volume.m.surface') : null), answer: m('c.unitv', { x: { unit: 'cm3', val: new MQ.Q(a * b * c) } }), explain: m('t.volume.ex2', { a, b, c, x: a * b * c }), wrong: a + b + c !== a * b * c ? [{ fields: { a: String(a + b + c) } }] : [] };
       if (L === 3) return { prompt: m('t.volume.q3', { v: { unit: 'cm3', val: new MQ.Q(a * b * c) }, a: cm(a), b: cm(b) }), widget: { type: 'input', fields: [field('a', new MQ.Q(c), { unit: 'cm' })] }, answer: m('c.unitv', { x: cm(c) }), explain: m('t.volume.ex3', { v: a * b * c, a, b, p: a * b, x: c }) };
       const A = r.int(3, 8) * 10, B = r.int(2, 5) * 10, C = r.int(2, 6) * 10; const lit = new MQ.Q(A * B * C, 1000);
-      return { prompt: m('t.volume.q4', { a: cm(A), b: cm(B), c: cm(C) }), figure: F.solid('cuboid'), widget: { type: 'input', fields: [field('a', lit, { unit: 'l' })] }, diagnose: v => v.a && v.a.eq(A * B * C) ? m('t.volume.m.liters') : null, answer: m('c.unitv', { x: { unit: 'l', val: lit } }), explain: m('t.volume.ex4', { a: A, b: B, c: C, v: A * B * C, x: lit }), wrong: [{ fields: { a: String(A * B * C) } }] };
+      return { prompt: m('t.volume.q4', { a: cm(A), b: cm(B), c: cm(C) }), figure: lang => F.box(A, B, C, { labels: [A, B, C].map(v => MQ.fmtNum(v, lang) + ' cm'), open: true }), widget: { type: 'input', fields: [field('a', lit, { unit: 'l' })] }, diagnose: v => v.a && v.a.eq(A * B * C) ? m('t.volume.m.liters') : null, answer: m('c.unitv', { x: { unit: 'l', val: lit } }), explain: m('t.volume.ex4', { a: A, b: B, c: C, v: A * B * C, x: lit }), wrong: [{ fields: { a: String(A * B * C) } }] };
     }
   });
 
@@ -691,7 +713,7 @@
       if (L === 3) { const a = r.int(2, 15); return { prompt: m('t.surface.q3', { a: cm(a) }), widget: { type: 'input', fields: [field('a', new MQ.Q(6 * a * a), { unit: 'cm2' })] }, diagnose: v => v.a && v.a.eq(a * a * a) ? m('t.surface.m.volume') : null, answer: m('c.unitv', { x: { unit: 'cm2', val: new MQ.Q(6 * a * a) } }), explain: m('t.surface.ex3', { a, f: a * a, x: 6 * a * a }) }; }
       let a, b, c, S;
       do { a = r.int(2, 12); b = r.int(2, 10); c = r.int(2, 8); S = L === 2 ? 2 * (a * b + b * c + a * c) : a * b + 2 * (a * c + b * c); } while (S === a * b * c || (L === 4 && 2 * (a * b + b * c + a * c) === a * b * c));
-      return { prompt: m(L === 2 ? 't.surface.q2' : 't.surface.q4', { a: cm(a), b: cm(b), c: cm(c) }), figure: F.solid('cuboid'), widget: { type: 'input', fields: [field('a', new MQ.Q(S), { unit: 'cm2' })] }, diagnose: v => v.a && v.a.eq(a * b * c) ? m('t.surface.m.volume') : (v.a && L === 4 && v.a.eq(2 * (a * b + b * c + a * c)) ? m('t.surface.m.lid') : null), answer: m('c.unitv', { x: { unit: 'cm2', val: new MQ.Q(S) } }), explain: m(L === 2 ? 't.surface.ex2' : 't.surface.ex4', { a, b, c, ab: a * b, bc: b * c, ac: a * c, x: S }), wrong: [{ fields: { a: String(a * b * c) } }] };
+      return { prompt: m(L === 2 ? 't.surface.q2' : 't.surface.q4', { a: cm(a), b: cm(b), c: cm(c) }), figure: lang => F.box(a, b, c, { labels: [a, b, c].map(v => MQ.fmtNum(v, lang) + ' cm'), open: L !== 2 }), widget: { type: 'input', fields: [field('a', new MQ.Q(S), { unit: 'cm2' })] }, diagnose: v => v.a && v.a.eq(a * b * c) ? m('t.surface.m.volume') : (v.a && L === 4 && v.a.eq(2 * (a * b + b * c + a * c)) ? m('t.surface.m.lid') : null), answer: m('c.unitv', { x: { unit: 'cm2', val: new MQ.Q(S) } }), explain: m(L === 2 ? 't.surface.ex2' : 't.surface.ex4', { a, b, c, ab: a * b, bc: b * c, ac: a * c, x: S }), wrong: [{ fields: { a: String(a * b * c) } }] };
     }
   });
 
@@ -723,7 +745,8 @@
         };
       }
       const k = L === 4 ? 4 : 1, tol = L === 1 ? 0.25 : 0.18;
-      const exact = A * k, lo = Math.max(1, Math.floor(exact * (1 - tol))), hi = Math.ceil(exact * (1 + tol)), best = Math.round(exact);
+      // the model answer is built from the rounded number of squares, so the explanation's sum is exact (14 × 4 = 56, not 55)
+      const exact = A * k, lo = Math.max(1, Math.floor(exact * (1 - tol))), hi = Math.ceil(exact * (1 + tol)), best = Math.round(A) * k;
       return {
         prompt: m('t.area_estimate.q' + L), figure: fig,
         widget: {
@@ -769,14 +792,23 @@
       const X = p => [ox + p[0] * sc, oy - p[1] * sc];
       const cx = maxX / 2, cy = maxY / 2;
       let body = F.poly(V.map(X), 'shape'); const boxes = [];
-      [[iA, 'A'], [iB, 'B']].forEach(([i, nm]) => { const [x, y] = X(V[i]); const lx = x + (V[i][0] < cx ? -16 : 16), ly = V[i][1] === 0 || V[i][1] === maxY ? y + (V[i][1] < cy ? 22 : -12) : y + 5; boxes.push([lx, ly]); body += `<circle class="pt" cx="${x}" cy="${y}" r="6"/>` + F.text(lx, ly, nm, 'tx b'); });
+      const insideV = (x, y) => { let c = false; for (let a = 0, b = V.length - 1; a < V.length; b = a++) { const [xa, ya] = V[a], [xb, yb] = V[b]; if ((ya > y) !== (yb > y) && x < (xb - xa) * (y - ya) / (yb - ya) + xa) c = !c; } return c; };
+      // the letter goes diagonally outside the garden (at an inner corner it used to sit on the fence)
+      [[iA, 'A'], [iB, 'B']].forEach(([i, nm]) => { const [x, y] = X(V[i]); const dirs = [[-1, -1], [1, -1], [-1, 1], [1, 1]].sort((d, e) => (e[0] * (V[i][0] - cx) + e[1] * (V[i][1] - cy)) - (d[0] * (V[i][0] - cx) + d[1] * (V[i][1] - cy)));
+        const d = dirs.find(([u, v]) => !insideV(V[i][0] + u * 0.3, V[i][1] + v * 0.3)) || dirs[0]; const lx = x + d[0] * 16, ly = y - d[1] * 16 + 6;
+        boxes.push([lx, ly]); body += `<circle class="pt" cx="${x}" cy="${y}" r="6"/>` + F.text(lx, ly, nm, 'tx b'); });
       V.forEach((p, i) => { const q = V[(i + 1) % V.length]; const mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2; const horiz = p[1] === q[1]; let [tx, ty] = X([mx, my]);
         // put the label outside the figure: test a point slightly on each side
         const inside = (x, y) => { let c = false; for (let a = 0, b = V.length - 1; a < V.length; b = a++) { const [xa, ya] = V[a], [xb, yb] = V[b]; if ((ya > y) !== (yb > y) && x < (xb - xa) * (y - ya) / (yb - ya) + xa) c = !c; } return c; };
-        const place = sgn => horiz ? [tx, ty + sgn * 18 + (sgn > 0 ? 4 : 0)] : [tx + sgn * 24, ty + 5];
+        const place = (sgn, far = 1, shift = 0) => horiz ? [tx + shift * 1.6, ty + sgn * 18 * far + (sgn > 0 ? 4 : 0)] : [tx + sgn * 24 * far, ty + 5 + shift];
         const outSgn = horiz ? (inside(mx, my + 0.3) ? 1 : -1) : (inside(mx + 0.3, my) ? -1 : 1);
-        const hit = ([x, y]) => boxes.some(([bx, by]) => Math.abs(bx - x) < 44 && Math.abs(by - y) < 18);
-        let pos = place(outSgn); if (hit(pos)) pos = place(-outSgn);
+        // a label must not touch another label nor any fence line (all fences are horizontal or vertical)
+        const crossesFence = ([x, y]) => V.some((p1, k) => { const [ax, ay] = X(p1), [bx, by] = X(V[(k + 1) % V.length]); const L0 = x - 20, R0 = x + 20, T0 = y - 15, B0 = y + 3;
+          return Math.max(ax, bx) >= L0 && Math.min(ax, bx) <= R0 && Math.max(ay, by) >= T0 && Math.min(ay, by) <= B0; });
+        const hit = pos => crossesFence(pos) || boxes.some(([bx, by]) => Math.abs(bx - pos[0]) < 44 && Math.abs(by - pos[1]) < 18);
+        // outside first (also a bit further out or shifted along the side); inside only as a last resort
+        const cands = [place(outSgn), place(outSgn, 1, 18), place(outSgn, 1, -18), place(outSgn, 1.8), place(-outSgn)];
+        let pos = cands.find(c => !hit(c)) || cands[0];
         boxes.push(pos); body += F.text(pos[0], pos[1], sides[i] + ' m', 'tx lbl'); });
 
       const fig = F.svg(ox * 2 + maxX * sc, oy + 40, body, '', 'pathfig');

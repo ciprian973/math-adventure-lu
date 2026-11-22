@@ -172,7 +172,7 @@ svg.fig { font-family: inherit; touch-action: manipulation; }
 .fig .arrow { fill: #1e293b; } .fig .tick:hover { fill: rgba(11,110,153,.12); cursor: pointer; } .fig .lattice { cursor: pointer; } .fig .lattice:hover { fill: rgba(217,119,6,.25); }
 .fig .prot { fill: rgba(0,163,224,.12); stroke: #0b6e99; stroke-width: 1.5; }
 .fig .ruler { fill: #fef3c7; stroke: #b7791f; stroke-width: 1.5; }
-.fig .face1 { fill: #a9d5f0; stroke: #0b4a6e; stroke-width: 2; } .fig .face2 { fill: #d2eaf8; stroke: #0b4a6e; stroke-width: 2; } .fig .face3 { fill: #6db3dc; stroke: #0b4a6e; stroke-width: 2; }
+.fig .face1 { fill: #a9d5f0; stroke: #0b4a6e; stroke-width: 2; } .fig .face2 { fill: #d2eaf8; stroke: #0b4a6e; stroke-width: 2; } .fig .face3 { fill: #6db3dc; stroke: #0b4a6e; stroke-width: 2; } .fig .face4 { fill: #1f5f86; stroke: #0b4a6e; stroke-width: 2; }
 .fig .cube { stroke-width: 1.5; } .fig .netface { fill: #fde7b0; stroke: #7c4a03; stroke-width: 2; }
 .fig .dial { fill: #fff; stroke: #1e293b; stroke-width: 3; } .fig .hand { stroke: #1e293b; stroke-linecap: round; } .fig .hand.hh { stroke-width: 6; } .fig .hand.mh { stroke-width: 3.5; stroke: #c8102e; }
 .fig .water { fill: #8fd0f5; } .fig .glass { fill: none; stroke: #1e293b; stroke-width: 3; }

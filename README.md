@@ -12,6 +12,7 @@ Progress is stored in the browser's `localStorage` on that device only. Each pro
 
 - **In the browser:** open `selftest.html`, choose 1000, press *Run self-test* (about 25 s). It also draws one figure of every template for a visual check.
 - **In a terminal (Node 18+):** `node tools/selftest.js` (or `node tools/selftest.js 200` for a quicker run). Exit code 0 = everything passed; results are written to `docs/SELFTEST_RESULTS.md`.
+- **Geometry drawings:** `node tools/geometry-check.js` measures every triangle and quadrilateral that is drawn (sides, angles, parallel sides) and compares it with the answers marked correct; it also rejects drawings that are ambiguous to the eye (an angle close to 90° that is not right, two sides almost equal) and checks translation arrows and transformed shapes.
 - `node tools/diagnose.js` groups any failures by template, level and kind with an example seed.
 - `node tools/coverage.js` regenerates `docs/COVERAGE.md` and `docs/CURRICULUM.md` from the code.
 

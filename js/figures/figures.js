@@ -95,11 +95,11 @@
 
   /* ---------------- Coordinate plane (first quadrant) ---------------- */
   F.coord = (w, h, { points = [], segments = [], polygons = [], interactive = false, label = '', icons = [], cell = U, axisNames = ['x', 'y'], texts = [] } = {}) => {
-    const ox = 34, oy = 14 + h * cell; let s = '';
+    const ox = 34, oy = 30 + h * cell; let s = '';
     for (let x = 0; x <= w; x++) s += line(ox + x * cell, oy, ox + x * cell, oy - h * cell, 'grid') + text(ox + x * cell, oy + 20, x, 'tx sm');
     for (let y = 0; y <= h; y++) s += line(ox, oy - y * cell, ox + w * cell, oy - y * cell, 'grid') + text(ox - 12, oy - y * cell + 5, y, 'tx sm');
     s += line(ox, oy, ox + w * cell + 14, oy, 'axis') + line(ox, oy, ox, oy - h * cell - 10, 'axis');
-    s += text(ox + w * cell + 16, oy + 18, axisNames[0], 'tx sm b') + text(ox - 16, oy - h * cell - 2, axisNames[1], 'tx sm b');
+    s += text(ox + w * cell + 16, oy + 18, axisNames[0], 'tx sm b') + text(ox + 12, oy - h * cell - 14, axisNames[1], 'tx sm b');
     polygons.forEach(pg => s += poly(pg.pts.map(p => [ox + p[0] * cell, oy - p[1] * cell]), pg.cls || 'shape'));
     segments.forEach(sg => s += line(ox + sg[0] * cell, oy - sg[1] * cell, ox + sg[2] * cell, oy - sg[3] * cell, sg[4] || 'ln thick'));
     icons.forEach(ic => s += `<g class="icon">${F.icon(ic.type, ox + ic.x * cell, oy - ic.y * cell)}${ic.label ? text(ox + ic.x * cell, oy - ic.y * cell - 16, ic.label, 'tx sm b') : ''}</g>`);
@@ -145,8 +145,9 @@
       const a = pts[sl.i], bpt = pts[(sl.i + 1) % pts.length];
       const mx = (a[0] + bpt[0]) / 2, my = (a[1] + bpt[1]) / 2;
       let nx = mx - cx, ny = my - cy; const L = Math.hypot(nx, ny) || 1; nx /= L; ny /= L;
-      const [X, Y] = P([mx + nx * 0.55, my + ny * 0.55]);
-      s += `<text class="tx lbl" x="${r2(X)}" y="${r2(Y + 6)}" text-anchor="middle">${sl.text}</text>`;
+      // the text is anchored on the side away from the figure, so a label never crosses its own side
+      const [X, Y] = P([mx + nx * 0.4, my + ny * 0.55]); const anchor = nx < -0.3 ? 'end' : nx > 0.3 ? 'start' : 'middle';
+      s += `<text class="tx lbl" x="${r2(X)}" y="${r2(Y + 6)}" text-anchor="${anchor}">${sl.text}</text>`;
     });
     return svg((gw + 1) * cell, (gh + 1) * cell, s + extra, label, 'ongrid');
   };
@@ -252,16 +253,17 @@
       case 'prism': {
         // triangle in front, apex up, depth going back to the upper right:
         // we see the front triangle and the right face; the left face is behind
-        const A = [30, 135], B = [100, 135], C = [65, 80], d = [45, -35];
+        // a long prism (like a chocolate bar box): with a short depth it looked like a wedge
+        const A = [15, 140], B = [75, 140], C = [45, 88], d = [80, -45];
         const A2 = [A[0] + d[0], A[1] + d[1]], B2 = [B[0] + d[0], B[1] + d[1]], C2 = [C[0] + d[0], C[1] + d[1]];
         s += poly([B, B2, C2, C], 'face3') + poly([A, B, C], 'face1');
         s += line(A[0], A[1], A2[0], A2[1], 'ln dash') + L([C2, A2, B2], 'ln dash');
         break;
       }
       case 'cylinder': {
-        s += `<rect class="face1" x="40" y="40" width="90" height="90"/><ellipse class="face2" cx="85" cy="40" rx="45" ry="14"/>`;
-        s += `<path class="face1" d="M 40 130 A 45 14 0 0 0 130 130" /><path class="ln dash" fill="none" d="M 40 130 A 45 14 0 0 1 130 130"/>`;
-        s += line(40, 40, 40, 130) + line(130, 40, 130, 130);
+        // body = two sides and the front half of the bottom ellipse (no straight line across the bottom)
+        s += `<path class="face1" d="M 40 40 L 40 130 A 45 14 0 0 0 130 130 L 130 40 Z"/><ellipse class="face2" cx="85" cy="40" rx="45" ry="14"/>`;
+        s += `<path class="ln dash" fill="none" d="M 40 130 A 45 14 0 0 1 130 130"/>`;
         break;
       }
       case 'cone': {
@@ -283,6 +285,22 @@
     }
     // the drawings use a fixed 170-unit space; "size" only changes how big it is shown
     return `<svg class="fig solid" viewBox="-6 -6 182 165" width="${r2(s0)}" style="max-width:100%;height:auto" role="img" aria-label="${esc(label || '')}" xmlns="http://www.w3.org/2000/svg">${s}</svg>`;
+  };
+
+  /* ---------------- box with its real proportions and labelled edges ----------------
+   * a = length (front, left to right), b = width (going back), c = height; open = no lid */
+  F.box = (a, b, c, { labels = null, open = false, label = '' } = {}) => {
+    const k = Math.min(150 / (a + 0.45 * b), 105 / (c + 0.45 * b), 22);
+    const w = a * k, h = c * k, dd = 0.45 * b * k, x = 64, y = 16 + dd;
+    const P = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]], T = [[x, y], [x + dd, y - dd], [x + w + dd, y - dd], [x + w, y]], R = [[x + w, y], [x + w + dd, y - dd], [x + w + dd, y + h - dd], [x + w, y + h]];
+    let s = poly(P, 'face1') + poly(R, 'face3') + poly(T, open ? 'face4' : 'face2');
+    s += polyl([[x, y + h], [x + dd, y + h - dd], [x + w + dd, y + h - dd]], 'ln dash') + line(x + dd, y - dd, x + dd, y + h - dd, 'ln dash');
+    if (labels) {
+      s += text(x + w / 2, y + h + 18, labels[0], 'tx lbl');
+      s += text(x + w + dd / 2 + 8, y + h - dd / 2 + 14, labels[1], 'tx lbl', 'start');
+      s += text(x - 8, y + h / 2 + 5, labels[2], 'tx lbl', 'end');
+    }
+    return svg(x + w + dd + 70, y + h + 28, s, label, 'box');
   };
 
   /* ---------------- Nets ---------------- */
