@@ -139,7 +139,7 @@
       if (L === 4) {
         // inverse: 750 g = ? kg (fraction or decimal accepted)
         const val = new MQ.Q(f * n, d);
-        return { prompt: m('t.frac_qty.q4', { a: U(val, small), u: { raw: MQ.unitStr(big) } }), widget: { type: 'input', fields: [field('a', new MQ.Q(n, d), { unit: big })] }, answer: m('t.frac_qty.ans4', { f: fr(n, d), x: new MQ.Q(n, d), u: { raw: MQ.unitStr(big) } }), explain: m('t.frac_qty.ex4', { a: U(val, small), f: fr(n, d), x: new MQ.Q(n, d), u: { raw: MQ.unitStr(big) }, b: f }) };
+        return { prompt: m('t.frac_qty.q4', { a: U(val, small), u: { raw: MQ.unitStr(big) } }), widget: { type: 'input', fields: [field('a', new MQ.Q(n, d), { unit: big })] }, answer: m('t.frac_qty.ans4', { f: fr(n, d), x: new MQ.Q(n, d), u: { raw: MQ.unitStr(big) } }), explain: m('t.frac_qty.ex4', { a: U(val, small), f: fr(n, d), x: new MQ.Q(n, d), u: { raw: MQ.unitStr(big) }, b: U(f, small) }) };
       }
       const whole = L === 3 ? r.int(1, 3) : 0;
       const res = new MQ.Q(whole * f).add(new MQ.Q(f * n, d));
@@ -158,10 +158,12 @@
   T.add({
     id: 'time_dur', stage: 'gm_time', objectives: ['GM.2.1', 'GM.C5'], mt: [],
     gen(r, L) {
-      const ctx = r.pick(['bus', 'film', 'match', 'hike']);
+      // durations that fit the situation (no 14-minute film, no 4-hour football match)
+      const ctx = r.pick(L === 1 ? ['bus', 'hike'] : L === 2 ? ['bus'] : ['bus', 'film', 'match', 'hike']);
       if (L <= 3) {
         const start = L === 1 ? r.int(7, 18) * 60 : r.int(7 * 60, 19 * 60);
-        let dur = L === 1 ? r.int(1, 4) * 60 : L === 2 ? r.int(5, 50) : r.int(25, 150);
+        let dur = L === 1 ? (ctx === 'bus' ? 1 : r.int(2, 4)) * 60 : L === 2 ? r.int(5, 50)
+          : ctx === 'film' ? r.int(80, 150) : ctx === 'match' ? r.int(105, 112) : ctx === 'hike' ? r.int(65, 150) : r.int(25, 95);
         if (L === 2 && (start % 60) + dur >= 60) dur = 59 - (start % 60) || 5;
         if (L === 2 && dur <= 0) return this.gen(r, L);
         const end = start + dur;
@@ -224,14 +226,16 @@
   T.add({
     id: 'clock_read', stage: 'gm_time', objectives: ['GM.2.5', 'GM.C5'], mt: [],
     gen(r, L) {
-      const h = r.int(1, 11); const mi = L === 1 ? r.pick([0, 30]) : L === 2 ? r.pick([15, 30, 45]) : L === 3 ? r.int(1, 11) * 5 : r.int(1, 59);
       const pm = r.chance(0.6);
+      const h = pm ? r.int(1, 11) : r.int(6, 11);   // "it is morning": 6 to 11 o'clock, not 2 at night
+      const mi = L === 1 ? r.pick([0, 30]) : L === 2 ? r.pick([15, 30, 45]) : L === 3 ? r.int(1, 11) * 5 : r.int(1, 59);
+      const late = mi >= 40;                         // the short hand is already close to the next number
       const t = (pm ? h + 12 : h) * 60 + mi;
       return {
         prompt: m(pm ? 't.clock_read.qpm' : 't.clock_read.qam'), figure: F.clock(h, mi),
         widget: { type: 'input', fields: [field('a', t, { kind: 'time' })] },
-        diagnose: v => v.a != null && pm && v.a === h * 60 + mi ? m('t.clock_read.m.24h') : (v.a != null && v.a % 60 === (mi + 30) % 60 ? null : null),
-        answer: m('c.time', { t: { time: t } }), explain: m(pm ? 't.clock_read.expm' : 't.clock_read.exam', { h, m: mi, x: { time: t } }),
+        diagnose: v => v.a != null && pm && v.a === h * 60 + mi ? m('t.clock_read.m.24h') : v.a != null && late && v.a === t + 60 ? m('t.clock_read.m.next', { n: h + 1, h }) : null,
+        answer: m('c.time', { t: { time: t } }), explain: m((pm ? 't.clock_read.expm' : 't.clock_read.exam') + (late ? '2' : ''), { h, n: h + 1, m: mi, x: { time: t } }),
         wrong: pm ? [{ fields: { a: MQ.fmtTime(h * 60 + mi) } }] : []
       };
     }

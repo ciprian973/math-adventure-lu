@@ -575,12 +575,12 @@
       const prices = qs.map(q => unitP.mul(q));
       const table = (hide, override) => ({ html: lang => `<table class="ptable"><tr><th>${MQ.t('t.prop_table.h.' + ctx, {}, lang)}</th>${qs.map(q => `<td>${MQ.fmtNum(q, lang)}</td>`).join('')}</tr><tr><th>${MQ.t('t.prop_table.h.price', {}, lang)}</th>${prices.map((p, i) => `<td>${hide.includes(i) ? '<span class="box">' + String.fromCharCode(97 + hide.indexOf(i)) + '</span>' : MQ.fmtNum(override && override[i] ? override[i] : p, lang, { places: 2 })}</td>`).join('')}</tr></table>` });
       if (L === 4) {
-        const prop = r.chance(0.5); const over = {};
-        if (!prop) { const j = r.int(1, 3); over[j] = prices[j].add(r.pick([new MQ.Q(1), new MQ.Q(1, 2)])); }
+        const prop = r.chance(0.5); const over = {}; let j = 0;
+        if (!prop) { j = r.int(1, 3); over[j] = prices[j].add(r.pick([new MQ.Q(1), new MQ.Q(1, 2)])); }
         return {
           prompt: m('t.prop_table.q4'), figure: { htmlFig: table([], over) },
           widget: { type: 'tf', truth: prop, reasons: r.shuffle([{ label: m('t.prop_table.r.same'), correct: prop }, { label: m('t.prop_table.r.notSame'), correct: !prop }, { label: m('t.prop_table.r.grows'), correct: false }]), wrongFb: m('t.prop_table.m.check') },
-          answer: m(prop ? 'c.true' : 'c.false'), explain: m('t.prop_table.ex4', { u: { money: unitP } })
+          answer: m(prop ? 'c.true' : 'c.false'), explain: prop ? m('t.prop_table.ex4yes', { u: { money: unitP } }) : m('t.prop_table.ex4no', { u: { money: unitP }, q: qs[j] })
         };
       }
       const hide = L === 1 ? [r.int(1, 3)] : r.sample([0, 1, 2, 3], 2).sort();

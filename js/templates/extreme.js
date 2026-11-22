@@ -50,10 +50,10 @@
 
   /* a plain grid of rows × cols squares */
   function gridFig(cols, rows, { label = '', marks = [] } = {}) {
-    const c = 38, ox = 10, oy = 10; let s = '';
+    const c = 38, ox = 22, oy = 22; let s = '';   // margins so that the letters S and F are never cut off
     for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) s += `<rect class="cell sq" x="${ox + i * c}" y="${oy + j * c}" width="${c}" height="${c}"/>`;
     marks.forEach(mk => s += `<circle class="pt" cx="${ox + mk.x * c}" cy="${oy + (rows - mk.y) * c}" r="7"/><text class="tx b" x="${ox + mk.x * c + (mk.dx || 10)}" y="${oy + (rows - mk.y) * c + (mk.dy || -10)}" text-anchor="middle">${mk.t}</text>`);
-    return F.svg(cols * c + 2 * ox + 14, rows * c + 2 * oy + 14, s, label, 'grid');
+    return F.svg(cols * c + 2 * ox + 14, rows * c + 2 * oy + 18, s, label, 'grid');
   }
 
   /* ================================================================= */
@@ -366,7 +366,7 @@
       const mi = 6 * mm, ho = (30 * hh + mm / 2) % 360; let x = Math.abs(ho - mi); if (x > 180) x = 360 - x;
       let w = Math.abs((30 * hh) % 360 - mi); if (w > 180) w = 360 - w;
       const v = { t: raw(hh + ':' + String(mm).padStart(2, '0')), h: hh % 12, mm, mi, ho, df: Math.abs(ho - mi), x };
-      return pack(K, v, one(Qn(x)), m('c.deg', { x }), { figure: F.clock(hh % 12, mm), wrong: wrongs([w], x), diagnose: diag([[w !== x ? w : null, K('m1', v)]]) });
+      return pack(K, v, one(Qn(x)), m('c.deg', { x }), { explain: K(v.df > 180 ? 'ex2' : 'ex', v), figure: F.clock(hh % 12, mm), wrong: wrongs([w], x), diagnose: diag([[w !== x ? w : null, K('m1', v)]]) });
     },
     /* three angles on a straight line */
     line(r, K) {
@@ -400,7 +400,7 @@
       const n = r.int(3, 7), k = r.pick([0, 1, 1, 2, 2, 3]), i = n - 2;
       const x = [i * i * i, 6 * i * i, 12 * i, 8][k], w = [null, 6 * n * n, 12 * n, null][k];
       const v = { n, i, n3: n * n * n, x, k };
-      return { prompt: K('q' + k, v), hints: [K('h1', v), K('h2_' + k, v), K('h3', v)], explain: K('ex' + k, v), widget: one(Qn(x)), answer: ans(x), figure: F.solid('cube', { size: 130 }),
+      return { prompt: K('q' + k, v), hints: [K('h1', v), K('h2_' + k, v), K('h3', v)], explain: K('ex' + k, v), widget: one(Qn(x)), answer: ans(x), figure: `<div class="painted">${F.cuboidCubes(n, n, n, { s: Math.max(11, 30 - 3 * n) })}</div>`,   // the real n × n × n cube, painted red
         wrong: wrongs([w], x), diagnose: diag([[w, K('m1', v)]]), selfCheck: () => i ** 3 + 6 * i * i + 12 * i + 8 === n ** 3 };
     },
     /* a prism with f faces: how many edges */
@@ -441,16 +441,18 @@
   });
 
   /* a garden with a path all around it */
-  function pathFig(a, b) {
-    const sc = Math.min(14, 220 / (a + 4)), pad = 2 * sc, W = (a + 4) * sc, H = (b + 4) * sc;
+  function pathFig(a, b, c) {
+    // drawn to scale (the path a little wider when it is very thin, so that it stays visible)
+    const sc = Math.min(14, 220 / (a + 2 * c)), pad = Math.max(c * sc, 5), W = a * sc + 2 * pad, H = b * sc + 2 * pad;
     return F.svg(W + 20, H + 20, `<rect class="face2" x="10" y="10" width="${W}" height="${H}"/><rect class="face1" x="${10 + pad}" y="${10 + pad}" width="${a * sc}" height="${b * sc}"/>`, '', 'path');
   }
   X('ef_area', {
     path(r, K) {
-      const a = r.int(6, 20), b = r.int(4, 15), c = r.pick([Qn(1), Qn(2), Qn(1, 2), Qn(3, 2)]);
+      // the length is the longer side
+      const a = r.int(6, 20), b = r.int(4, Math.min(15, a - 1)), c = r.pick([Qn(1), Qn(2), Qn(1, 2), Qn(3, 2)]);
       const A = Qn(a).add(c.mul(2)), B = Qn(b).add(c.mul(2)), big = A.mul(B), x = big.sub(Qn(a * b)), w = c.mul(2 * (a + b));
       const v = { a, b, c, aa: A, bb: B, big, g: a * b, x: U(x, 'm2'), xv: x };
-      return pack(K, v, one(x, { unit: 'm2' }), m('c.unitv', { x: U(x, 'm2') }), { figure: pathFig(a, b), wrong: wrongDec([w], x), diagnose: diag([[w, K('m1', v)]]) });
+      return pack(K, v, one(x, { unit: 'm2' }), m('c.unitv', { x: U(x, 'm2') }), { figure: pathFig(a, b, c.toNumber()), wrong: wrongDec([w], x), diagnose: diag([[w, K('m1', v)]]) });
     },
     /* the largest area for a given perimeter (whole metres) */
     maxarea(r, K) {

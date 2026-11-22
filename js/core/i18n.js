@@ -44,7 +44,7 @@
     if (v.unit) return MQ.fmtNum(v.val, lang, v.places != null ? { places: v.places } : {}) + ' ' + unitStr(v.unit);
     if (v.time != null) return MQ.fmtTime(v.time);
     if (v.date) return MQ.fmtDate(v.date.y, v.date.m, v.date.d);
-    if (v.dur != null) return t('fmt.duration', { h: Math.floor(v.dur / 60), m: v.dur % 60 }, lang, plain);
+    if (v.dur != null) { const h = Math.floor(v.dur / 60), mm = v.dur % 60; return t(h && mm ? 'fmt.duration' : h ? 'fmt.durationH' : 'fmt.durationM', { h, m: mm }, lang, plain); }  // "4 h", "14 min" instead of "4 h 0 min", "0 h 14 min"
     if (v.expr) return MQ.exprToString(v.expr, lang);
     if (v.wdec != null) return MQ.numwords.decimal(v.wdec, lang);
     if (v.wfrac) return MQ.numwords.fraction(v.wfrac[0], v.wfrac[1], lang);
