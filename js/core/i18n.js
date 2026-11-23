@@ -71,7 +71,8 @@
   /* t(key, vars, lang?, plain?) */
   function t(key, vars = {}, lang = state.lang, plain = false) {
     const dict = DATA[lang] || {};
-    let s = dict[key];
+    // simple language (an option per pupil): a shorter version of the text, one fact per line, if there is one
+    let s = state.simple && dict[key + '@s'] != null ? dict[key + '@s'] : dict[key];
     if (s == null) { return '⟦' + key + '⟧'; }
     if (Array.isArray(s)) s = s.join('');
     return interpolate(s, vars, lang, plain);

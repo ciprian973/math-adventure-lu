@@ -56,6 +56,7 @@
     header() {
       const s = G.settings(), p = G.active();
       document.body.classList.toggle('calm', !!(p && p.calm));
+      MQ.i18n.simple = !!(p && p.simple); document.body.classList.toggle('simple', MQ.i18n.simple);
       const hd = $('#topbar'); hd.innerHTML = '';
       const home = h('button', { class: 'brand', type: 'button', 'aria-label': t('ui.home') }, `${MQ.mascot(p ? p.avatar : {}, 40)}<span>${t('app.title')}</span>`);
       home.onclick = () => App.go(G.active() ? 'map' : 'profiles'); hd.appendChild(home);

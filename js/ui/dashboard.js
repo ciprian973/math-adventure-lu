@@ -84,6 +84,7 @@
       const c = h('div', { class: 'card form pupilopts' }); c.appendChild(h('h3', {}, '⚙️ ' + t('dash.optionsFor', { n: esc(p.name) })));
       const box = (key, label, note, on, set) => { const l = h('label', { class: 'row optrow' }, `<input type="checkbox" ${on ? 'checked' : ''}> <span><b>${label}</b><br><small>${note}</small></span>`); l.querySelector('input').onchange = e => { set(e.target.checked); G.save(); App().header(); }; c.appendChild(l); };
       box('calm', t('dash.calm'), t('dash.calmNote'), !!p.calm, v => { p.calm = v; });
+      box('simple', t('dash.simple'), t('dash.simpleNote'), !!p.simple, v => { p.simple = v; });
       // languages: of the calculation exercises, and of the terms shown on a tap
       const ui = MQ.i18n.lang, N = MQ.terms.NAMES;
       const pick = (label, note, opts, cur, set) => { const l = h('label', { class: 'optrow optsel' }, `<span><b>${label}</b><br><small>${note}</small></span><select>${opts.map(([v, txt]) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${txt}</option>`).join('')}</select>`); l.querySelector('select').onchange = e => { set(e.target.value); G.save(); }; c.appendChild(l); };

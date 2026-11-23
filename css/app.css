@@ -372,3 +372,6 @@ body.contrast .summitbtn { background: #fff; border-color: #000; }
 .dtable.gloss td:nth-child(2) { font-weight: 600; } .dtable.gloss td small { color: #64748b; }
 .optrow { display: flex; gap: .6rem; align-items: flex-start; margin: .6rem 0; } .optsel { flex-wrap: wrap; justify-content: space-between; } .optsel select { font: inherit; padding: .35rem; border-radius: 8px; max-width: 100%; }
 .toast small { color: #cbd5e1; }
+
+/* simple language: more space between the lines of a word problem */
+body.simple .prompt .qtext { line-height: 1.6; }
