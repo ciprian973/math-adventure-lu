@@ -244,7 +244,8 @@
     gen(r, L) {
       const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
       const vals = days.map((d, i) => (i >= 5 ? r.int(30, 48) : r.int(12, 32)) * 100);
-      const tbl = { html: lang => `<table class="ptable"><caption>${MQ.t('t.rp_hypo.caption', {}, lang)}</caption><tr>${days.map(d => `<th>${MQ.t('day.short.' + d, {}, lang)}</th>`).join('')}</tr><tr>${vals.map(v => `<td>${MQ.fmtNum(v, lang)}</td>`).join('')}</tr></table>` };
+      // one row per day: seven columns side by side did not fit on a phone
+      const tbl = { html: lang => `<table class="ptable vtable"><caption>${MQ.t('t.rp_hypo.caption', {}, lang)}</caption>${days.map((d, i) => `<tr><th>${MQ.t('day.' + d, {}, lang)}</th><td>${MQ.fmtNum(vals[i], lang)}</td></tr>`).join('')}</table>` };
       const types = L === 1 ? ['min', 'max'] : L === 2 ? ['min', 'max', 'inc'] : ['min', 'max', 'inc', 'mean'];
       const type = r.pick(types); let truth, v = {};
       const n = names(r, 1)[0]; v.n = n;
