@@ -364,3 +364,11 @@ body.contrast .nextstar { color: #000; }
 .btn.big { font-size: 1.15rem; padding: .7rem 1.4rem; margin: .5rem 0; }
 body.contrast .summitbtn { background: #fff; border-color: #000; }
 .xunlock .rgroup { margin: .4rem 0; } .xunlock .rgroup b { display: block; margin-top: .3rem; }
+/* maths terms: a tap shows the word in the second language */
+.term { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: help; text-decoration: underline dotted #0b6e99 2px; text-underline-offset: 3px; display: inline; }
+.term:hover, .term:focus-visible { background: #e6f4fb; outline: none; border-radius: 3px; }
+.langsw { margin-top: .4rem; font-size: .85rem; }
+.glossbar { gap: .5rem; flex-wrap: wrap; } .glossbar input { flex: 1 1 12rem; padding: .5rem; border-radius: 10px; border: 2px solid #cbd5e1; font: inherit; } .glossbar select { font: inherit; padding: .4rem; border-radius: 10px; }
+.dtable.gloss td:nth-child(2) { font-weight: 600; } .dtable.gloss td small { color: #64748b; }
+.optrow { display: flex; gap: .6rem; align-items: flex-start; margin: .6rem 0; } .optsel { flex-wrap: wrap; justify-content: space-between; } .optsel select { font: inherit; padding: .35rem; border-radius: 8px; max-width: 100%; }
+.toast small { color: #cbd5e1; }

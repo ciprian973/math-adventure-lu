@@ -169,7 +169,7 @@
       }
       const nav = h('div', { class: 'navrow' });
       const nSets = MQ.sets.forPupil(p).filter(s => { const r = (p.setRuns || {})['s:' + s.id]; return !r || !MQ.sets.summary(r).complete; }).length;
-      [['📚', 'ui.sets', () => App.go('sets'), nSets], [G.LEAGUES[G.leagueOf(p.xp)].icon, 'ui.leagues', () => App.go('leagues')], ['🦁', 'ui.avatar', () => App.go('avatar')], ['🏅', 'ui.badges', () => App.go('badges')]].forEach(([i, k, fn, badge]) => { const b = h('button', { class: 'btn', type: 'button' }, `${i} ${t(k)}${badge ? ` <span class="pill">${badge}</span>` : ''}`); b.onclick = fn; nav.appendChild(b); });
+      [['📚', 'ui.sets', () => App.go('sets'), nSets], ['📖', 'ui.glossary', () => App.go('glossary')], [G.LEAGUES[G.leagueOf(p.xp)].icon, 'ui.leagues', () => App.go('leagues')], ['🦁', 'ui.avatar', () => App.go('avatar')], ['🏅', 'ui.badges', () => App.go('badges')]].forEach(([i, k, fn, badge]) => { const b = h('button', { class: 'btn', type: 'button' }, `${i} ${t(k)}${badge ? ` <span class="pill">${badge}</span>` : ''}`); b.onclick = fn; nav.appendChild(b); });
       main.appendChild(nav);
     },
 
@@ -258,6 +258,32 @@
 
     /* ---------------- the exercise player ---------------- */
     play(main, params, keep) { player = new Player(main, params, keep); App._player = player; },
+
+    /* ---------------- dictionary of maths terms ---------------- */
+    glossary(main) {
+      const p = G.active(); const lang = MQ.i18n.lang; let other = MQ.terms.otherLang(p, lang) || (lang === 'de' ? 'fr' : 'de');
+      const back = h('button', { class: 'btn back', type: 'button' }, '← ' + t('ui.map')); back.onclick = () => App.go(p ? 'map' : 'profiles'); main.appendChild(back);
+      main.appendChild(h('h1', {}, '📖 ' + t('ui.glossary')));
+      main.appendChild(h('p', { class: 'small' }, t('ui.glossaryIntro')));
+      const bar = h('div', { class: 'brow glossbar' });
+      const search = h('input', { type: 'search', placeholder: t('ui.glossarySearch'), 'aria-label': t('ui.glossarySearch') });
+      const sel = h('select', { 'aria-label': t('ui.glossaryLang') }, MQ.LANGS.filter(l => l !== lang).map(l => `<option value="${l}" ${l === other ? 'selected' : ''}>${MQ.terms.NAMES[l]}</option>`).join(''));
+      bar.append(search, sel); main.appendChild(bar);
+      const list = h('div', { class: 'glosslist' }); main.appendChild(list);
+      const draw = () => {
+        const qy = search.value.trim().toLowerCase(); list.innerHTML = '';
+        ['num', 'ops', 'geo', 'meas', 'data'].forEach(th => {
+          const items = MQ.GLOSSARY.filter(g => g.th === th && (!qy || MQ.LANGS.some(l => g[l] && g[l].t.toLowerCase().includes(qy))));
+          if (!items.length) return;
+          list.appendChild(h('h2', {}, t('glossary.th.' + th)));
+          const tb = h('table', { class: 'dtable gloss' });
+          tb.innerHTML = `<tr><th>${MQ.terms.NAMES[lang]}</th><th>${MQ.terms.NAMES[other]}</th><th></th></tr>` + items.map(g => `<tr><td><b>${g[lang].t}</b><br><small>${MQ.LANGS.filter(l => l !== lang && l !== other).map(l => g[l].t).join(' · ')}</small></td><td lang="${other}">${g[other].t}</td><td><button class="icon" type="button" data-say="${g.id}" aria-label="${t('ui.readAloud')}">🔊</button></td></tr>`).join('');
+          tb.querySelectorAll('[data-say]').forEach(b => b.onclick = () => { const g = MQ.terms.byId(b.dataset.say); MQ.speech.speak(g[other].t.replace(/\(.*?\)/g, ''), other); });
+          list.appendChild(tb);
+        });
+      };
+      search.oninput = draw; sel.onchange = () => { other = sel.value; draw(); }; draw();
+    },
 
     /* ---------------- avatar ---------------- */
     avatar(main, { first }) {
@@ -349,7 +375,8 @@
   /* =================================================================== */
   /* Player: practice, boss and timed challenge                           */
   /* =================================================================== */
-  const BLITZ_MS = 120000;   // timed challenge: 2 minutes, once a day per topic
+  const BLITZ_MS = 120000;
+  const CALC_STAGES = ['no_big', 'no_dec', 'no_frac', 'no_equiv', 'no_calc', 'no_ops', 'no_check', 'no_struct'];   // timed challenge: 2 minutes, once a day per topic
   class Player {
     constructor(main, params, keep) {
       this.main = main; this.p = G.active(); this.params = params; this.mode = params.mode || 'practice';
@@ -464,19 +491,23 @@
       // exercise card
       const card = h('section', { class: 'excard', 'aria-live': 'polite' });
       const q = h('div', { class: 'prompt' });
-      q.innerHTML = `<div class="qtext">${tm(ex.prompt)}</div>`;
+      // calculation exercises can be shown in another language (e.g. German, as at school); explanations stay in the app's language
+      const plang = this.promptLang(ex, lang), other = MQ.terms.otherLang(this.p, lang);
+      q.innerHTML = `<div class="qtext" lang="${plang}">${MQ.tm(ex.prompt, plang)}</div>`;
+      if (plang !== lang || this.showOrig === ex.seed) { const sw = h('button', { class: 'btn small langsw', type: 'button' }, '🔁 ' + MQ.terms.NAMES[plang !== lang ? lang : this.p.calcLang]); sw.onclick = () => { this.showOrig = this.showOrig === ex.seed ? null : ex.seed; this.render(); }; q.appendChild(sw); }
+      MQ.terms.mark(q.querySelector('.qtext'), plang, plang !== lang ? lang : other);
       const say = h('button', { class: 'icon say', type: 'button', 'aria-label': t('ui.readAloud'), title: t('ui.readAloud') }, MQ.mascot(this.p.avatar, 40) + '<span class="wave" aria-hidden="true">🔊</span>');
-      say.onclick = () => { const r = MQ.speech.speak(MQ.stripHtml(tm(ex.prompt)), lang); if (!r.ok) App.toast(t('ui.noSpeech')); else if (r.fallback && !this.warnedLb) { this.warnedLb = true; App.toast(t('ui.lbVoice')); } };
+      say.onclick = () => { const r = MQ.speech.speak(MQ.stripHtml(MQ.tm(ex.prompt, plang)), plang); if (!r.ok) App.toast(t('ui.noSpeech')); else if (r.fallback && !this.warnedLb) { this.warnedLb = true; App.toast(t('ui.lbVoice')); } };
       q.prepend(say); card.appendChild(q);
-      const fig = renderFigure(ex, lang); if (fig) card.appendChild(h('div', { class: 'figure' }, fig));
-      this.widget = W.build(ex, lang, () => this.submit());
+      const fig = renderFigure(ex, plang); if (fig) card.appendChild(h('div', { class: 'figure' }, fig));
+      this.widget = W.build(ex, plang, () => this.submit());
       if (keepResp) this.widget.set(keepResp);
       if (this.done) { this.widget.lock(); if (this.lastRes && this.lastRes.kind === 'solution' && this.widget.reveal) this.widget.reveal(); }
       card.appendChild(h('div', { class: 'widget' })).appendChild(this.widget.el);
       // hints
       const hintBox = h('div', { class: 'hints' });
       for (let i = 0; i < this.hints; i++) hintBox.appendChild(h('p', { class: 'hint h' + i }, `<b>${t('ui.hintN', { n: i + 1 })}</b> ${tm(ex.hints[i])}`));
-      card.appendChild(hintBox);
+      card.appendChild(hintBox); MQ.terms.mark(hintBox, lang, other);
       // feedback
       const fb = h('div', { class: 'feedback', 'aria-live': 'assertive' }); card.appendChild(fb);
       // buttons
@@ -566,7 +597,13 @@
       if (r.kind === 'retry') html = `${MQ.mascot(this.p.avatar, 56, 'think')}<div><p><b>${t('ui.notYet')}</b> ${r.fb ? tm(r.fb) : t('ui.tryAgain')}</p><p class="small">${t('ui.retryHint')}</p></div>`;
       if (r.kind === 'ok') html = `${MQ.mascot(this.p.avatar, 56)}<div><p><b>${t(r.praise)}</b> ${r.ev && r.ev.redo ? `<span class="xpnext">${t('ui.redoNoXp')}</span>` : `<span class="xpgain">+${r.ev ? r.ev.xp : (r.xp || 0)} XP</span>`}${r.ev && !r.ev.redo ? ` <span class="xpnext">${t('ui.xpToLevel', { n: G.levelRange(G.level(this.p))[1] - this.p.xp, l: G.level(this.p) + 1 })}</span>` : ''}</p><p class="explain"><b>${t('ui.why')}</b> ${tm(ex.explain)}</p></div>`;
       if (r.kind === 'solution') html = `${MQ.mascot(this.p.avatar, 56, 'think')}<div><p><b>${t('ui.letsSee')}</b> ${r.fb ? tm(r.fb) : ''}</p><p><b>${t('ui.answerIs')}</b> ${tm(ex.answer)}</p><p class="explain"><b>${t('ui.why')}</b> ${tm(ex.explain)}</p><p class="small">${t('ui.noProblem')}</p></div>`;
-      fb.innerHTML = html;
+      fb.innerHTML = html; MQ.terms.mark(fb, MQ.i18n.lang, MQ.terms.otherLang(this.p, MQ.i18n.lang));
+    }
+    /* language of the question: the pupil's "calculation language" for number and calculation topics (levels 1–4) */
+    promptLang(ex, lang) {
+      const cl = this.p.calcLang; if (!cl || cl === lang || ex.level === 5 || this.showOrig === ex.seed) return lang;
+      const tp = MQ.T.byId[ex.tpl]; const st = [].concat(tp.stage, tp.stages || []);
+      return st.some(s => CALC_STAGES.includes(s)) ? cl : lang;
     }
     advance() {
       if (this.mode === 'set') {
