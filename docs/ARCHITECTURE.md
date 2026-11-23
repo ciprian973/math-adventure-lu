@@ -51,7 +51,7 @@ tools/selftest.js     Node runner;  tools/diagnose.js  grouped failures;  tools/
 
 ## 4. Game rules (summary)
 
-XP per correct answer: 5 + 5 × level (halved on the second try, reduced by hints, never negative). Player level L needs 25·L·(L+1) XP. Stars per stage: ★ 5 correct, ★★ +4 correct at level ≥ 3, ★★★ +3 correct at level 4. Adaptive mode: 4 correct in a row → offer the next level; 3 errors in the last 4 → drop one level and show a worked example. Mastery per objective = first-try success rate over the last 10 exercises touching that objective. No lives, no punishment, no purchases, no public leaderboard; the 60-second challenge compares only with one's own record.
+XP per correct answer: 5 + 5 × level, 40 at level 5 (halved on the second try, reduced by hints, never negative; none for a redo after the answer was shown). Player level: 50·L XP per level up to level 19, then 10 % more per level above 19 (`G.need`); the level never goes down (`p.lvlFloor`). Stars per stage (6, each needing the previous one): 10 correct; 8 correct at level ≥ 3; 8 at level ≥ 4 (opens level 5); 15 first-try correct at level 4; 3 and 10 extreme problems. Stars earned under older rules are kept (`s.sk`). Badges are never removed when thresholds change. The 2-minute challenge runs once a day per topic. Adaptive mode: 4 correct in a row → offer the next level; 3 errors in the last 4 → drop one level and show a worked example. Mastery per objective = first-try success rate over the last 10 exercises touching that objective. No lives, no punishment, no purchases, no public leaderboard; the 2-minute challenge compares only with one's own record.
 
 ## 5. Templates
 

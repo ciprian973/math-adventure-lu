@@ -138,7 +138,20 @@
     'ml': 'ml', 'cl': 'cl', 'dl': 'dl', 'l': 'l', 'hl': 'hl',
     's': 's', 'sec': 's', 'min': 'min', 'h': 'h',
     '€': '€', 'eur': '€', 'euro': '€', 'euros': '€', 'ct': 'ct', 'cent': 'ct', 'cents': 'ct',
-    '%': '%', '°': '°', 'cm³.': 'cm3'
+    '%': '%', '°': '°', 'cm³.': 'cm3',
+    // unit names written out, in the five languages (the box still asks for the right unit)
+    'liter': 'l', 'litre': 'l', 'liters': 'l', 'litres': 'l', 'litru': 'l', 'litri': 'l', 'lt': 'l',
+    'milliliter': 'ml', 'millilitre': 'ml', 'milliliters': 'ml', 'millilitres': 'ml', 'mililitri': 'ml', 'mililitru': 'ml',
+    'gramm': 'g', 'gram': 'g', 'grams': 'g', 'gramme': 'g', 'grammes': 'g', 'grame': 'g', 'gr': 'g',
+    'kilogramm': 'kg', 'kilogram': 'kg', 'kilograms': 'kg', 'kilogramme': 'kg', 'kilogrammes': 'kg', 'kilograme': 'kg', 'kilo': 'kg', 'kilos': 'kg',
+    'meter': 'm', 'metre': 'm', 'meters': 'm', 'metres': 'm', 'mètre': 'm', 'mètres': 'm', 'metru': 'm', 'metri': 'm',
+    'zentimeter': 'cm', 'centimeter': 'cm', 'centimetre': 'cm', 'centimeters': 'cm', 'centimetres': 'cm', 'centimètre': 'cm', 'centimètres': 'cm', 'centimetri': 'cm', 'centimetru': 'cm',
+    'millimeter': 'mm', 'millimetre': 'mm', 'millimeters': 'mm', 'millimetres': 'mm', 'millimètre': 'mm', 'millimètres': 'mm', 'milimetri': 'mm', 'milimetru': 'mm',
+    'kilometer': 'km', 'kilometre': 'km', 'kilometers': 'km', 'kilometres': 'km', 'kilomètre': 'km', 'kilomètres': 'km', 'kilometri': 'km', 'kilometru': 'km',
+    'std': 'h', 'stunde': 'h', 'stunden': 'h', 'stonn': 'h', 'stonnen': 'h', 'heure': 'h', 'heures': 'h', 'hour': 'h', 'hours': 'h', 'hr': 'h', 'hrs': 'h', 'ora': 'h', 'ore': 'h', 'oră': 'h',
+    'minute': 'min', 'minutes': 'min', 'minuten': 'min', 'minutt': 'min', 'minutten': 'min', 'minut': 'min', 'mn': 'min', 'mins': 'min',
+    'sekunde': 's', 'sekunden': 's', 'sekonn': 's', 'sekonnen': 's', 'seconde': 's', 'secondes': 's', 'second': 's', 'seconds': 's', 'secundă': 's', 'secunde': 's', 'secunda': 's',
+    'grad': '°', 'grade': '°', 'degré': '°', 'degrés': '°', 'degree': '°', 'degrees': '°'
   };
   function normaliseNumber(str, lang) {
     const L = LOCALE[lang] || LOCALE.en;
@@ -214,9 +227,9 @@
   function parseNumberAnswer(s, raw, lang) {
     // trailing unit
     let unit = null;
-    const um = /^(.*?)[\s]*([a-zA-Z€%°²³]+[23²³]?\.?)$/.exec(s);
+    const um = /^(.*?)[\s]*([a-zA-ZÀ-ÿăâîșțşţ€%°²³]+[23²³]?\.?)$/.exec(s);
     if (um && um[1] && /[\d)]$/.test(um[1].trim())) {
-      const key = um[2].toLowerCase();
+      const key = um[2].toLowerCase().replace(/\.$/, '');   // "3 kg." with a full stop
       if (UNIT_ALIASES[key]) { unit = UNIT_ALIASES[key]; s = um[1].trim(); }
       else return { ok: false, reason: 'unknownUnit', unitText: um[2] };
     }
@@ -244,7 +257,7 @@
     const m = /^(\d{1,2})(?::|\.|h|u)?(\d{2})?(?:h|uhr|auer)?$/.exec(s);
     if (!m) return null;
     const h = +m[1], mi = m[2] ? +m[2] : 0;
-    if (h > 24 || mi > 59) return null;
+    if (h > 24 || mi > 59 || (h === 24 && mi > 0)) return null;
     return h * 60 + mi;
   }
   function fmtTime(minutes) {

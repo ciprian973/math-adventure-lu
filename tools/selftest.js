@@ -16,6 +16,6 @@ const lines = [];
 const rep = MQ.selftest.run({ n, log: s => { console.log(s); lines.push(s); } });
 const md = ['# Self-test results', '', `Run: ${new Date().toISOString()} · Node ${process.version}`, '', '```', ...lines, '```', '', '| Template | Instances | Failing |', '|---|---:|---:|',
   ...Object.entries(rep.perTemplate).map(([k, v]) => `| ${k} | ${v.instances} | ${v.failing} |`)].join('\n');
-fs.mkdirSync(path.join(ROOT, 'docs'), { recursive: true });
-fs.writeFileSync(path.join(ROOT, 'docs', 'SELFTEST_RESULTS.md'), md + '\n');
+// the results file is tracked in git: written only on request (node tools/selftest.js 1000 --write)
+if (process.argv.includes('--write')) { fs.mkdirSync(path.join(ROOT, 'docs'), { recursive: true }); fs.writeFileSync(path.join(ROOT, 'docs', 'SELFTEST_RESULTS.md'), md + '\n'); }
 process.exit(rep.errors.length ? 1 : 0);

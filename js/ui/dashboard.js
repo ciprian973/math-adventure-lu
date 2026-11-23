@@ -10,7 +10,11 @@
   'use strict';
   const MQ = root.MQ; const G = MQ.game; const h = MQ.widgets.h; const App = () => MQ.app;
   const t = (k, v) => MQ.t(k, v || {});
-  let unlocked = false, selected = null, tab = 'overview';
+  // unlocked until the adult leaves the area or after 10 minutes without a click there
+  let unlockedAt = 0, selected = null, tab = 'overview';
+  const IDLE = 10 * 60000;
+  const isOpen = () => unlockedAt && Date.now() - unlockedAt < IDLE;
+  const touch = () => { if (unlockedAt) unlockedAt = Date.now(); };
   const pct = x => x == null ? '—' : Math.round(100 * x) + ' %';
   const mins = ms => Math.round(ms / 60000);
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -18,26 +22,31 @@
   const D = MQ.dashboard = {
     gate(main) {
       const s = G.settings();
-      if (unlocked) return D.render(main);
+      if (isOpen()) { touch(); return D.render(main); }
+      unlockedAt = 0;
       main.appendChild(h('h1', {}, '🎓 ' + t('ui.teacher')));
       const f = h('form', { class: 'card form narrow' });
       if (!s.pinHash) {
         f.innerHTML = `<p>${t('dash.setPin')}</p><label>${t('dash.pin')}<input name="a" type="password" inputmode="numeric" minlength="4" maxlength="8" required></label><label>${t('dash.pinAgain')}<input name="b" type="password" inputmode="numeric" minlength="4" maxlength="8" required></label><button class="btn primary">${t('ui.ok')}</button><p class="small">${t('dash.pinNote')}</p>`;
-        f.onsubmit = e => { e.preventDefault(); if (f.a.value.length < 4 || f.a.value !== f.b.value) { App().toast(t('dash.pinMismatch')); return; } s.pinHash = G.hashPin(f.a.value); G.save(); unlocked = true; App().go('teacher'); };
+        f.onsubmit = e => { e.preventDefault(); if (f.a.value.length < 4 || f.a.value !== f.b.value) { App().toast(t('dash.pinMismatch')); return; } s.pinHash = G.hashPin(f.a.value); G.save(); unlockedAt = Date.now(); App().go('teacher'); };
       } else {
-        f.innerHTML = `<label>${t('dash.pin')}<input name="a" type="password" inputmode="numeric" maxlength="8" required></label><button class="btn primary">${t('dash.open')}</button><p class="small">${t('dash.forgot')}</p>`;
-        f.onsubmit = e => { e.preventDefault(); if (G.hashPin(f.a.value) === s.pinHash) { unlocked = true; App().go('teacher'); } else App().toast(t('dash.wrongPin')); };
+        f.innerHTML = `<label>${t('dash.pin')}<input name="a" type="password" inputmode="numeric" maxlength="8" required></label><button class="btn primary">${t('dash.open')}</button><p class="small">${t('dash.forgot')}</p><button class="btn small" type="button" data-bk="1">⬇ ${t('dash.backupDl')}</button>`;
+        f.querySelector('[data-bk]').onclick = () => D.downloadBackup();
+        f.onsubmit = e => { e.preventDefault(); if (G.hashPin(f.a.value) === s.pinHash) { unlockedAt = Date.now(); App().go('teacher'); } else App().toast(t('dash.wrongPin')); };
       }
       main.appendChild(f); setTimeout(() => f.a.focus(), 50);
     },
-    lock() { unlocked = false; },
+    lock() { unlockedAt = 0; if (D._timer) { clearInterval(D._timer); D._timer = null; } },
 
     render(main) {
       const ps = G.profiles();
       const head = h('div', { class: 'dashhead' });
       head.innerHTML = `<h1>🎓 ${t('ui.teacher')}</h1>`;
-      const lock = h('button', { class: 'btn', type: 'button' }, '🔒 ' + t('dash.lock')); lock.onclick = () => { unlocked = false; App().go(G.active() ? 'map' : 'profiles'); }; head.appendChild(lock);
+      const lock = h('button', { class: 'btn', type: 'button' }, '🔒 ' + t('dash.lock')); lock.onclick = () => { unlockedAt = 0; App().go(G.active() ? 'map' : 'profiles'); }; head.appendChild(lock);
       main.appendChild(head);
+      // any click in the area keeps it open; 10 minutes without one closes it, even if the screen is left showing
+      main.addEventListener('click', touch);
+      if (!D._timer) D._timer = setInterval(() => { if (!isOpen()) App().go(G.active() ? 'map' : 'profiles'); }, 20000);
       if (!ps.length) { main.appendChild(h('p', {}, t('dash.noPupils'))); D.renderSettings(main); D.renderCoverage(main); return; }
       if (!selected || !ps.find(p => p.id === selected)) selected = ps[0].id;
       const sel = h('div', { class: 'pupilsel', role: 'tablist' });
@@ -169,10 +178,29 @@
       const csv2 = h('button', { class: 'btn', type: 'button' }, '⬇ ' + t('dash.csvAll')); csv2.onclick = () => D.downloadCSV(G.profiles());
       const pdf = h('button', { class: 'btn', type: 'button' }, '🖨 ' + t('dash.pdf')); pdf.onclick = () => D.printReport(p);
       row.append(csv1, csv2, pdf); box.appendChild(row);
+      // backup of all profiles (to keep progress safe or move it to another device)
+      const bk = h('div', { class: 'card form' }); bk.innerHTML = `<h3>💾 ${t('dash.backupTitle')}</h3><p class="small">${t('dash.backupNote')}</p>`;
+      const r2 = h('div', { class: 'brow' });
+      const dl = h('button', { class: 'btn primary', type: 'button' }, '⬇ ' + t('dash.backupDl')); dl.onclick = () => D.downloadBackup();
+      const up = h('label', { class: 'btn' }, '⬆ ' + t('dash.restore') + '<input type="file" accept=".json,application/json" hidden>');
+      up.querySelector('input').onchange = ev => { const file = ev.target.files[0]; if (!file) return; const rd = new FileReader();
+        rd.onload = () => App().modal(`<p>${t('dash.restoreConfirm', { f: esc(file.name) })}</p>`, [{ label: t('dash.restore'), cls: 'danger', fn: () => { const err = G.restoreBackup(String(rd.result)); if (err) App().toast('⚠️ ' + t(err), 6000); else { App().toast('✅ ' + t('dash.restored')); App().header(); App().go('teacher'); } } }, { label: t('ui.cancel') }]);
+        rd.readAsText(file); };
+      r2.append(dl, up); bk.appendChild(r2);
+      const bad = G.unreadableCopies();
+      if (bad.length) { bk.appendChild(h('p', { class: 'small' }, t('dash.unreadableNote', { n: bad.length }))); bad.forEach(k => { const b = h('button', { class: 'btn small', type: 'button' }, '⬇ ' + new Date(+k.split('.').pop()).toLocaleString()); b.onclick = () => D.download(G.rawCopy(k) || '', 'math-adventure-unreadable-' + k.split('.').pop() + '.json', 'application/json'); bk.appendChild(b); }); }
+      box.appendChild(bk);
     },
+    download(text, name, type) {
+      const blob = new Blob([text], { type });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+      document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    },
+    downloadBackup() { D.download(G.backupText(), 'math-adventure-backup-' + new Date().toISOString().slice(0, 10) + '.json', 'application/json'); },
     downloadCSV(list) {
       const C = MQ.CURRICULUM; const objs = C.allObjectives();
-      const q = s => '"' + String(s).replace(/"/g, '""') + '"';
+      // a cell starting with = + - @ would run as a formula in a spreadsheet: put an apostrophe in front
+      const q = s => { let v = String(s); if (/^[=+\-@\t\r]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; };
       const lines = [['pupil', 'objective_id', 'objective_fr', 'attempts', 'first_try_correct', 'recent_mastery_pct'].join(';')];
       list.forEach(p => objs.forEach(o => { const ob = p.objectives[o.id]; const m = G.mastery(p, o.id); lines.push([q(p.name), o.id, q(o.fr), ob ? ob.a : 0, ob ? ob.c : 0, m == null ? '' : Math.round(100 * m)].join(';')); }));
       lines.push(''); lines.push(['pupil', 'stage', 'stars', 'level', 'attempts', 'correct', 'minutes'].join(';'));

@@ -26,6 +26,7 @@
       const head = h === 1 ? 'cent' : FR_U[h] + ' cent' + (r === 0 ? 's' : '');
       return r === 0 ? head : head + ' ' + fr99(r);
     }
+    if (n >= 1e6) { const mil = Math.floor(n / 1e6), rest = n % 1e6; const head = mil === 1 ? 'un million' : fr(mil) + ' millions'; return rest ? head + ' ' + fr(rest) : head; }
     const th = Math.floor(n / 1000), r = n % 1000;
     let head = th === 1 ? 'mille' : fr(th).replace(/cents$/, 'cent').replace(/vingts$/, 'vingt') + ' mille';
     return r === 0 ? head : head + ' ' + fr(r);

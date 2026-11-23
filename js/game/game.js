@@ -7,16 +7,26 @@
   'use strict';
   const MQ = root.MQ = root.MQ || {};
   const KEY = 'mathAdventureLU.v1';
-  const store = (() => { try { const t = '__t'; localStorage.setItem(t, '1'); localStorage.removeItem(t); return localStorage; } catch (e) { const mem = {}; return { getItem: k => mem[k] || null, setItem: (k, v) => mem[k] = v, removeItem: k => delete mem[k] }; } })();
+  let memoryOnly = false;
+  const store = (() => { try { const t = '__t'; localStorage.setItem(t, '1'); localStorage.removeItem(t); return localStorage; } catch (e) { memoryOnly = true; const mem = {}; return { getItem: k => mem[k] || null, setItem: (k, v) => mem[k] = v, removeItem: k => delete mem[k], key: () => null, length: 0 }; } })();
 
   const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
   const dayDiff = (a, b) => Math.round((new Date(b) - new Date(a)) / 86400000);
 
   const G = MQ.game = {
     data: null,
+    memoryOnly: () => memoryOnly,
+    loadProblem: null, saveFailed: false,
+    fresh() { return { v: 1, profiles: [], active: null, settings: { lang: null, mute: false, dyslexia: false, mulSign: '×', pinHash: null, textScale: 1, rate: 0.95, contrast: false } }; },
     load() {
-      let d = null; try { d = JSON.parse(store.getItem(KEY)); } catch (e) { d = null; }
-      if (!d || d.v !== 1) d = { v: 1, profiles: [], active: null, settings: { lang: null, mute: false, dyslexia: false, mulSign: '×', pinHash: null, textScale: 1, rate: 0.95, contrast: false } };
+      let raw = null; try { raw = store.getItem(KEY); } catch (e) { raw = null; }
+      let d = null; try { d = JSON.parse(raw); } catch (e) { d = null; }
+      if (raw && (!d || d.v !== 1 || !Array.isArray(d.profiles))) {
+        // never overwrite what we cannot read (damaged, or saved by a newer version): keep a copy first
+        try { store.setItem(KEY + '.unreadable.' + Date.now(), raw); G.loadProblem = 'kept'; } catch (e) { G.loadProblem = 'lost'; }
+        d = null;
+      }
+      if (!d) d = G.fresh();
       G.data = d;
       // badges moved to families with five tiers: drop old single badges, award silently what is earned now
       d.profiles.forEach(p => { if (!p.badgesV2) { p.badges = (p.badges || []).filter(b => b === 'firstStep' || b.includes(':')); p.badgesV2 = true; } G.migrateV3(p); G.checkBadges(p); });
@@ -39,7 +49,26 @@
     },
     blitzUsedToday(p, sid) { return ((p.blitzDay || {})[sid]) === today(); },
     markBlitz(p, sid) { (p.blitzDay = p.blitzDay || {})[sid] = today(); G.save(); },
-    save() { try { store.setItem(KEY, JSON.stringify(G.data)); } catch (e) { console.warn('save failed', e); } },
+    save() {
+      try { G.data.savedAt = Date.now(); store.setItem(KEY, JSON.stringify(G.data)); G.saveFailed = false; }
+      catch (e) { console.warn('save failed', e); if (!G.saveFailed) { G.saveFailed = true; if (MQ.app && MQ.app.toast) MQ.app.toast('⚠️ ' + MQ.t('ui.saveFailed'), 8000); } }
+    },
+    KEY,
+    /* ---- backup: a JSON file with every profile, to download and restore ---- */
+    backupText() { return JSON.stringify({ app: 'math-adventure-lu', backup: 1, date: new Date().toISOString(), data: G.data }, null, 1); },
+    /* returns null when fine, or an error key */
+    restoreBackup(text) {
+      let b; try { b = JSON.parse(text); } catch (e) { return 'dash.restoreBad'; }
+      const d = b && b.app === 'math-adventure-lu' && b.data ? b.data : b;   // also accepts the raw saved data
+      if (!d || d.v !== 1 || !Array.isArray(d.profiles) || d.profiles.some(p => !p || !p.id || typeof p.name !== 'string' || !p.stages)) return 'dash.restoreBad';
+      try { const cur = store.getItem(KEY); if (cur) store.setItem(KEY + '.before-restore', cur); } catch (e) { /* no room for the extra copy: go on */ }
+      const pin = G.data.settings.pinHash;               // the PIN of this device stays (a forgotten PIN is not brought back)
+      d.settings = Object.assign(G.fresh().settings, d.settings || {}, { pinHash: pin });
+      G.data = d; G.save(); G.load();
+      return G.saveFailed ? 'ui.saveFailed' : null;
+    },
+    unreadableCopies() { const out = []; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith(KEY + '.unreadable.')) out.push(k); } } catch (e) { /* none */ } return out.sort(); },
+    rawCopy(k) { try { return store.getItem(k); } catch (e) { return null; } },
     settings() { return G.data.settings; },
     profiles() { return G.data.profiles; },
     active() { return G.data.profiles.find(p => p.id === G.data.active) || null; },

@@ -34,12 +34,15 @@
     const p = MQ.parseAnswer(raw, lang);
     if (!p.ok) return { ok: false, value: p.value, fb: { k: { unknownUnit: 'fb.unknownUnit', expression: 'fb.onlyResult', eqMismatch: 'fb.eqMismatch' }[p.reason] || 'fb.notNumber' } };
     if (p.unit && f.unit && p.unit !== f.unit && !(f.unit === '€' && p.unit === '€')) return { ok: false, fb: { k: 'fb.wrongUnit', v: { unit: MQ.unitStr(f.unit) } }, value: p.value };
+    // the box has no unit (it is written next to it, or none is wanted): a typed unit is not checked, so ask for the number alone
+    if (p.unit && !f.unit && p.unit !== '%') return { ok: false, fb: { k: 'fb.numberOnly' }, value: p.value };
     const targets = [f.expect].concat(f.alt || []).map(x => Q.of(x));
     const valueOk = targets.some(t => t.eq(p.value));
     if (!valueOk) return { ok: false, value: p.value, parsed: p };
     if (f.form === 'irreducible') {
       if (p.form === 'integer' && p.value.isInt()) return { ok: true, value: p.value };
-      if (p.form !== 'fraction' || p.num == null || MQ.gcd(p.num, p.den) !== 1) return { ok: false, value: p.value, fb: { k: 'fb.notReduced' } };
+      if (p.form !== 'fraction' || p.num == null) return { ok: false, value: p.value, fb: { k: 'fb.wantFraction' } };   // "1 1/2", "1,5": right value, other form
+      if (MQ.gcd(p.num, p.den) !== 1) return { ok: false, value: p.value, fb: { k: 'fb.notReduced' } };
     }
     if (f.form === 'fraction' && p.form !== 'fraction' && !(p.value.isInt() && f.allowInt)) return { ok: false, value: p.value, fb: { k: 'fb.wantFraction' } };
     if (f.form === 'decimal' && p.form === 'fraction') return { ok: false, value: p.value, fb: { k: 'fb.wantDecimal' } };
@@ -47,6 +50,8 @@
     return { ok: true, value: p.value };
   }
 
+  const FORMAL = ['fb.empty', 'fb.notNumber', 'fb.timeFormat', 'fb.dateFormat', 'fb.onlyResult', 'fb.unknownUnit', 'fb.numberOnly', 'fb.notReduced', 'fb.wantFraction', 'fb.wantDecimal', 'fb.wantDenominator'];
+  MQ.FORMAL_FB = FORMAL;
   function checkFields(fields, resp, lang, ex) {
     const fieldOk = {}; let fb = null; const values = {};
     fields.forEach(f => {
@@ -55,8 +60,11 @@
       if (!r.ok && r.fb && !fb) fb = r.fb;
     });
     const correct = fields.every(f => fieldOk[f.id]);
+    // "formal": every wrong box only has a form problem (unknown unit, fraction not simplified …) — this does not use up a try
+    const fbs = fields.filter(f => !fieldOk[f.id]).map(f => checkField(f, (resp.fields || {})[f.id], lang).fb);
+    const formal = !correct && fbs.every(x => x && FORMAL.includes(x.k));
     if (!correct && !fb && ex && ex.diagnose) { try { fb = ex.diagnose(values, resp) || null; } catch (e) { fb = null; } }
-    return { correct, fieldOk, fb, values };
+    return { correct, fieldOk, fb, values, formal };
   }
 
   function check(ex, resp, lang) {

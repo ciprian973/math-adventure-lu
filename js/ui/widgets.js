@@ -263,7 +263,7 @@
         .concat(w.poly ? w.poly.map((p, i) => { const q = w.poly[(i + 1) % w.poly.length]; return [p[0], p[1], q[0], q[1], 'ln']; }) : [])
         .concat(w.poly && pts.length === w.poly.length ? pts.map((p, i) => { const q = pts[(i + 1) % pts.length]; return [p[0], p[1], q[0], q[1], 'ln user']; }) : []);
       const points = (w.given || []).map(g => ({ ...g })).concat(pts.map((p, i) => ({ x: p[0], y: p[1], label: w.max > 1 && w.poly ? String.fromCharCode(65 + i) + "'" : '', cls: 'user' })));
-      box.innerHTML = F.coord(w.w, w.h, { points, segments: segs, icons, interactive: true }) + `<p class="count">${MQ.t('ui.pointsPlaced', { n: pts.length, m: w.max || 1 }, lang)}${pts.length ? ' — ' + pts.map(p => '(' + p[0] + ' ; ' + p[1] + ')').join(' ') : ''}</p>`;
+      box.innerHTML = F.coord(w.w, w.h, { points, segments: segs, icons, interactive: true }) + `<p class="count">${MQ.t('ui.pointsPlaced', { n: pts.length, m: w.max || 1 }, lang)}${pts.length ? ' — ' + pts.map(p => MQ.t('c.coord', { x: p[0], y: p[1] }, lang)).join(' ') : ''}</p>`;
       box.querySelectorAll('.lattice').forEach(el => el.addEventListener('click', () => toggle(+el.dataset.x, +el.dataset.y)));
       const c = box.querySelector(`.lattice[data-x="${cursor[0]}"][data-y="${cursor[1]}"]`); if (c && document.activeElement === box) c.classList.add('cursor');
     };

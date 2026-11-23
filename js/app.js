@@ -30,6 +30,14 @@
       if (G.active()) App.go('map'); else App.go('profiles');
       if (MQ.speech.available()) speechSynthesis.onvoiceschanged = () => {};
       document.addEventListener('keydown', e => { if (e.key === 'Escape') App.closeModal(); });
+      // ask the browser to keep this site's data (helps against automatic clean-up, e.g. on iPads)
+      try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* not available */ }
+      // the app open in two tabs: when the other tab saves, this one reloads instead of overwriting it later
+      window.addEventListener('storage', e => { if (e.key === G.KEY) { try { sessionStorage.setItem('mq.reloaded', '1'); } catch (x) { /* ignore */ } location.reload(); } });
+      let reloaded = false; try { reloaded = sessionStorage.getItem('mq.reloaded') === '1'; sessionStorage.removeItem('mq.reloaded'); } catch (x) { /* ignore */ }
+      if (reloaded) setTimeout(() => App.toast('🔄 ' + t('ui.otherTab'), 6000), 300);
+      if (G.loadProblem) setTimeout(() => App.modal(`<h2>⚠️ ${t('ui.loadProblemTitle')}</h2><p>${t(G.loadProblem === 'kept' ? 'ui.loadProblemKept' : 'ui.loadProblemLost')}</p>`, [{ label: t('ui.ok'), cls: 'primary' }]), 400);
+      else if (G.memoryOnly()) setTimeout(() => App.toast('⚠️ ' + t('ui.memoryOnly'), 9000), 400);
     },
     applySettings() {
       const s = G.settings();
@@ -72,6 +80,7 @@
     watchWidth() { try { const mq = root.matchMedia('(max-width: 640px)'); const f = () => App.header(); mq.addEventListener ? mq.addEventListener('change', f) : mq.addListener(f); } catch (e) { /* old browser: keep the layout */ } },
     go(screen, params = {}, keep = null) {
       if (player) { player.stop(); player = null; App._player = null; }
+      if (screen !== 'teacher' && MQ.dashboard) MQ.dashboard.lock();   // leaving the adult area always locks it
       current = { screen, params }; const main = $('#main'); main.innerHTML = ''; main.className = 'screen-' + screen;
       (Screens[screen] || Screens.map)(main, params, keep);
       if (screen !== 'play') main.focus({ preventScroll: true });
@@ -88,7 +97,7 @@
       return box;
     },
     closeModal() { document.querySelectorAll('.overlay').forEach(o => o.remove()); },
-    toast(html) { const e = h('div', { class: 'toast', role: 'status' }, html); document.body.appendChild(e); setTimeout(() => e.classList.add('show'), 10); setTimeout(() => { e.classList.remove('show'); setTimeout(() => e.remove(), 400); }, 2600); },
+    toast(html, ms = 2600) { const e = h('div', { class: 'toast', role: 'status' }, html); document.body.appendChild(e); setTimeout(() => e.classList.add('show'), 10); setTimeout(() => { e.classList.remove('show'); setTimeout(() => e.remove(), 400); }, ms); },
     confetti() { const c = h('div', { class: 'confetti', 'aria-hidden': 'true' }); for (let i = 0; i < 24; i++) { const s = h('i'); s.style.left = Math.random() * 100 + '%'; s.style.animationDelay = Math.random() * 0.3 + 's'; s.style.background = ['#ef3340', '#00a3e0', '#ffd23f', '#3bb273', '#7b3fa0'][i % 5]; c.appendChild(s); } document.body.appendChild(c); setTimeout(() => c.remove(), 1600); }
   };
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -177,7 +186,7 @@
       MQ.MAP.regions.forEach(rg => rg.stages.filter(s => all.includes(s)).forEach(s => {
         const ok = open.includes(s), n = G.stars(p, s);
         const c = h('button', { type: 'button', class: 'summittopic' + (ok ? ' open' : '') }, `<span aria-hidden="true">${ok ? '🏔️' : '🔒'}</span> ${t('stage.' + s)} <small>${tstars(n)}</small>`);
-        c.onclick = () => { if (ok) { const st = G.stage(p, s); st.level = 5; st.auto = false; G.save(); App.go('play', { stage: s, mode: 'practice' }); } else App.toast('🔒 ' + t('ui.extremeLockedTopic', { s: { k: 'stage.' + s }, n: 3 - n })); };
+        c.onclick = () => { if (ok) App.go('play', { mode: 'extreme', only: s }); else App.toast('🔒 ' + t('ui.extremeLockedTopic', { s: { k: 'stage.' + s }, n: 3 - n })); };
         grid.appendChild(c);
       }));
       main.appendChild(h('h2', {}, t('ui.summitTopics'))); main.appendChild(grid);
@@ -342,6 +351,8 @@
   class Player {
     constructor(main, params, keep) {
       this.main = main; this.p = G.active(); this.params = params; this.mode = params.mode || 'practice';
+      // the 2-minute challenge is once a day per topic: a second start becomes ordinary practice
+      if (!keep && this.mode === 'blitz' && G.blitzUsedToday(this.p, params.stage)) { this.mode = 'practice'; this.params = Object.assign({}, params, { mode: 'practice' }); setTimeout(() => App.toast('⏱ ' + t('ui.timedDoneTitle'), 4000), 200); }
       if (keep) { Object.assign(this, keep.state); this.restoring = keep; }
       else {
         this.recent = []; this.score = 0; this.count = 0;
@@ -392,7 +403,8 @@
       let L, tpls;
       if (this.mode === 'extreme') {
         // the summit mixes the extreme problems of every topic that has 3 stars
-        const open = MQ.MAP.regions.flatMap(rg => rg.stages).filter(s => G.extremeOpen(this.p, s));
+        // (with params.only: just that topic's extreme problems — a summit topic tile)
+        const open = MQ.MAP.regions.flatMap(rg => rg.stages).filter(s => G.extremeOpen(this.p, s) && (!this.params.only || s === this.params.only));
         const ok = MQ.T.extreme().filter(tp => [].concat(tp.stage, tp.stages || []).some(s => open.includes(s)));
         tpls = ok.map(x => x.id); L = 5;
         if (!tpls.length) { App.go('extreme'); return; }
@@ -407,7 +419,7 @@
       const avail = pool.filter(x => !this.recent.slice(-Math.min(2, pool.length - 1)).includes(x));
       const r = MQ.RNG((Date.now() ^ (Math.random() * 1e9)) >>> 0);
       const id = r.pick(avail.length ? avail : pool); this.recent.push(id);
-      if (this.mode === 'extreme') { const tp = MQ.T.byId[id]; this.stage = [].concat(tp.stage, tp.stages || []).find(s => G.extremeOpen(this.p, s)); }
+      if (this.mode === 'extreme') { const tp = MQ.T.byId[id]; this.stage = this.params.only || [].concat(tp.stage, tp.stages || []).find(s => G.extremeOpen(this.p, s)); }
       this.ex = MQ.T.make(id, L, r.int(1, 2 ** 30));
       this.tries = 0; this.hints = 0; this.t0 = Date.now(); this.done = false; this.lastRes = null;
       if (this.free()) { this.items.push({ ex: this.ex, stage: this.stage }); if (this.items.length > 30) this.items.shift(); this.pos = this.items.length - 1; this.widget = null; this.restoring = { resp: null }; }
@@ -493,7 +505,8 @@
       if (this.done) return;
       const lang = MQ.i18n.lang; const resp = this.widget.get();
       let res; try { res = MQ.check(this.ex, resp, lang); } catch (e) { console.error(e); res = { correct: false, fb: null }; }
-      if (!res.correct && res.fb && ['fb.empty', 'fb.chooseOne', 'fb.notNumber', 'fb.timeFormat', 'fb.dateFormat', 'fb.binsIncomplete', 'fb.onePoint', 'fb.onlyResult'].includes(res.fb.k) && this.mode !== 'blitz') {
+      const formal = res.formal != null ? res.formal : !!(res.fb && ['fb.empty', 'fb.chooseOne', 'fb.notNumber', 'fb.timeFormat', 'fb.dateFormat', 'fb.binsIncomplete', 'fb.onePoint', 'fb.onlyResult'].includes(res.fb.k));
+      if (!res.correct && res.fb && formal && this.mode !== 'blitz') {
         // formal problem, not a mathematical mistake: does not count as a try
         this.lastRes = { kind: 'formal', fb: res.fb }; this.showFeedback(this.lastRes); return;
       }
@@ -519,7 +532,9 @@
     finish(correct, res) {
       if (this.canNavigate()) { const it = this.items[this.pos]; it.resp = this.widget.get(); it.correct = correct; it.firstTry = correct && this.tries === 1 && !this.redo; }
       this.done = true; const ms = Date.now() - this.t0;
-      const ev = G.record(this.p, this.ex, { stage: this.stage, correct, tries: this.tries + (this.redo ? 1 : 0), hints: this.hints, ms, fb: (this.lastRes && this.lastRes.fb) || res.fb, mode: this.mode });
+      // a redo comes after the answer was already shown (or found): good practice, but no XP, no stars,
+      // and not counted a second time in the statistics
+      const ev = this.redo ? { xp: 0, redo: true, newBadges: [] } : G.record(this.p, this.ex, { stage: this.stage, correct, tries: this.tries, hints: this.hints, ms, fb: (this.lastRes && this.lastRes.fb) || res.fb, mode: this.mode });
       if (correct) { this.score++; MQ.audio.play('ok'); if (this.tries === 1) App.confetti(); }
       this.lastRes = { kind: correct ? 'ok' : 'solution', fb: res.fb, ev, praise: 'praise.' + (1 + Math.floor(Math.random() * 8)) };
       this.widget.lock(); this.widget.reveal && !correct && this.widget.reveal();
@@ -546,7 +561,7 @@
       const ex = this.ex; const fb = this.fbEl; fb.className = 'feedback ' + r.kind; let html = '';
       if (r.kind === 'formal') html = `<p>${tm(r.fb)}</p>`;
       if (r.kind === 'retry') html = `${MQ.mascot(this.p.avatar, 56, 'think')}<div><p><b>${t('ui.notYet')}</b> ${r.fb ? tm(r.fb) : t('ui.tryAgain')}</p><p class="small">${t('ui.retryHint')}</p></div>`;
-      if (r.kind === 'ok') html = `${MQ.mascot(this.p.avatar, 56)}<div><p><b>${t(r.praise)}</b> <span class="xpgain">+${r.ev ? r.ev.xp : (r.xp || 0)} XP</span>${r.ev ? ` <span class="xpnext">${t('ui.xpToLevel', { n: G.levelRange(G.level(this.p))[1] - this.p.xp, l: G.level(this.p) + 1 })}</span>` : ''}</p><p class="explain"><b>${t('ui.why')}</b> ${tm(ex.explain)}</p></div>`;
+      if (r.kind === 'ok') html = `${MQ.mascot(this.p.avatar, 56)}<div><p><b>${t(r.praise)}</b> ${r.ev && r.ev.redo ? `<span class="xpnext">${t('ui.redoNoXp')}</span>` : `<span class="xpgain">+${r.ev ? r.ev.xp : (r.xp || 0)} XP</span>`}${r.ev && !r.ev.redo ? ` <span class="xpnext">${t('ui.xpToLevel', { n: G.levelRange(G.level(this.p))[1] - this.p.xp, l: G.level(this.p) + 1 })}</span>` : ''}</p><p class="explain"><b>${t('ui.why')}</b> ${tm(ex.explain)}</p></div>`;
       if (r.kind === 'solution') html = `${MQ.mascot(this.p.avatar, 56, 'think')}<div><p><b>${t('ui.letsSee')}</b> ${r.fb ? tm(r.fb) : ''}</p><p><b>${t('ui.answerIs')}</b> ${tm(ex.answer)}</p><p class="explain"><b>${t('ui.why')}</b> ${tm(ex.explain)}</p><p class="small">${t('ui.noProblem')}</p></div>`;
       fb.innerHTML = html;
     }
@@ -596,7 +611,7 @@
       if (!rerender && this.score > best) { this.p.blitz[this.stage] = this.score; G.save(); }
       this.main.querySelector('.excard') && this.main.querySelector('.excard').remove();
       const c = h('section', { class: 'excard result' }, `${MQ.mascot(this.p.avatar, 110)}<h2>${t('ui.timeUp')}</h2><p>${t('ui.blitzScore', { n: this.score })}</p><p>${this.score > best ? t('ui.newRecord') : t('ui.bestSoFar', { n: best })}</p><p class="small">${t('ui.blitzNote')}</p>`);
-      const row = h('div', { class: 'brow' }); const again = h('button', { class: 'btn primary', type: 'button' }, t('ui.again')); again.onclick = () => App.go('play', this.params); const back = h('button', { class: 'btn', type: 'button' }, '← ' + t('ui.back')); back.onclick = () => App.go('region', { id: regionOf(this.stage).id }); row.append(again, back); c.appendChild(row); this.main.appendChild(c);
+      const row = h('div', { class: 'brow' }); const again = h('button', { class: 'btn primary', type: 'button' }, '▶ ' + t('ui.practise')); again.onclick = () => App.go('play', { stage: this.stage, mode: 'practice' }); const back = h('button', { class: 'btn', type: 'button' }, '← ' + t('ui.back')); back.onclick = () => App.go('region', { id: regionOf(this.stage).id }); row.append(again, back); c.appendChild(row); this.main.appendChild(c);
     }
   }
 

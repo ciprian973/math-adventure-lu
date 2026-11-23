@@ -85,7 +85,7 @@
       if (L <= 2) {
         const n = L; const pts = []; while (pts.length < n) { const p = [r.int(0, W), r.int(0, H)]; if (p[0] !== p[1] && !pts.some(q => (q[0] === p[0] && q[1] === p[1]) || (q[0] === p[1] && q[1] === p[0]))) pts.push(p); }
         return {
-          prompt: m(n === 1 ? 't.coord_plot.q1' : 't.coord_plot.q2', { a: { raw: '(' + pts[0].join(' ; ') + ')' }, b: { raw: pts[1] ? '(' + pts[1].join(' ; ') + ')' : '' } }),
+          prompt: m(n === 1 ? 't.coord_plot.q1' : 't.coord_plot.q2', { a: m('c.coord', { x: pts[0][0], y: pts[0][1] }), b: pts[1] ? m('c.coord', { x: pts[1][0], y: pts[1][1] }) : { raw: '' } }),
           widget: { type: 'point', w: W, h: H, max: n, targets: pts },
           answer: m('c.coord', { x: pts[0][0], y: pts[0][1] }), explain: m('t.coord_plot.ex'),
           wrong: [{ points: pts.map(p => [p[1], p[0]]) }]
@@ -118,7 +118,7 @@
       const fig = lang => F.coord(W, H, { icons: icons.map(ic => ({ ...ic })) }) + legend(lang);
       if (L === 1) {
         const ic = r.pick(icons);
-        return { prompt: m('t.map_route.q1', { a: { raw: '(' + ic.x + ' ; ' + ic.y + ')' } }), figure: fig,
+        return { prompt: m('t.map_route.q1', { a: m('c.coord', { x: ic.x, y: ic.y }) }), figure: fig,
           widget: { type: 'mc', options: r.shuffle(icons.slice(0, 4).concat(icons.slice(0, 4).includes(ic) ? [] : [ic]).slice(-4).map(i => ({ label: m('place.' + i.type), correct: i === ic }))) },
           answer: m('place.' + ic.type), explain: m('t.map_route.ex1') };
       }

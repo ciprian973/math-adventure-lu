@@ -147,7 +147,16 @@
     sum(r, K) {
       const [p, q] = r.pick(FRACS.concat([[2, 7], [3, 7], [3, 8], [5, 8], [2, 9], [4, 9]])), k = r.int(3, 12), S = (p + q) * k;
       const v = { f: fr(p, q), p, q, pq: p + q, s: S, k, n: p * k, d: q * k, x: fr(p * k, q * k) };
-      return pack(K, v, one(Qn(p, q), { form: 'fraction', denominator: q * k }), ans(fr(p * k, q * k)), { wrong: [{ fields: { a: p + '/' + q } }] });
+      // checked by hand: an equal fraction whose numerator + denominator is not S gets its own message,
+      // without telling which denominator is wanted (that would give the answer away)
+      const w = one(Qn(p, q), { form: 'fraction' });
+      w.custom = (resp, lang) => { const a = MQ.parseAnswer((resp.fields || {}).a, lang);
+        if (!a.ok) return { correct: false, fb: m('fb.notNumber'), formal: true };
+        if (!a.value.eq(Qn(p, q))) return { correct: false, fb: null };
+        if (a.form !== 'fraction' || a.num == null) return { correct: false, fb: m('fb.wantFraction'), formal: true };
+        return a.num + a.den === S ? { correct: true } : { correct: false, fb: K('m2', v) }; };
+      w.canonical = () => ({ fields: { a: (p * k) + '/' + (q * k) } });
+      return pack(K, v, w, ans(fr(p * k, q * k)), { wrong: [{ fields: { a: p + '/' + q } }, { fields: { a: (2 * p) + '/' + (2 * q) } }] });
     }
   });
 

@@ -212,7 +212,8 @@
         widget: { type: 'input', fields: [field('a', ans)] },
         diagnose: v => { if (!v.a) return null; if (!askDigit && v.a.eq(digit) && !digit.eq(count)) return m('t.dec_count.m.digit'); if (askDigit && v.a.eq(count) && !digit.eq(count)) return m('t.dec_count.m.count'); return null; },
         answer: m('c.num', { x: ans }),
-        explain: m(askDigit ? 't.dec_count.exDigit' : 't.dec_count.exCount', { x, u: { k: unitKeys[pos] }, c: count, d: digit, g: { k: 'pl.-' + pos }, cc: { k: 'cnt.' + pos, v: { n: count } } }),
+        // 7,48 has 74 whole tenths, but 7,48 = 74,8 tenths: the explanation must not write "7,48 = 74 tenths"
+        explain: m(askDigit ? 't.dec_count.exDigit' : scaled.isInt() ? 't.dec_count.exCount' : 't.dec_count.exCountPart', { x, s: scaled, u: { k: unitKeys[pos] }, c: count, d: digit, g: { k: 'pl.-' + pos }, cc: { k: 'cnt.' + pos, v: { n: count } } }),
         wrong: digit.eq(count) ? [] : [{ fields: { a: (askDigit ? count : digit).toString() } }]
       };
     }
