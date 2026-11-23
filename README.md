@@ -16,6 +16,7 @@ Progress is stored in the browser's `localStorage` on that device only. Each pro
 - **In a terminal (Node 18+):** `node tools/selftest.js` (or `node tools/selftest.js 200` for a quicker run). Exit code 0 = everything passed; `node tools/selftest.js 1000 --write` also writes the results to `docs/SELFTEST_RESULTS.md`.
 - **Geometry drawings:** `node tools/geometry-check.js` measures every triangle and quadrilateral that is drawn (sides, angles, parallel sides) and compares it with the answers marked correct; it also rejects drawings that are ambiguous to the eye (an angle close to 90° that is not right, two sides almost equal) and checks translation arrows and transformed shapes.
 - **Number words:** `node tools/numwords-check.js` compares the words the app writes for numbers with known forms (Luxembourgish from *Schwätzt Dir Lëtzebuergesch? A1*: siechzeg, eenanzwanzeg / eenavéierzeg, zwou Milliounen…).
+- **Before publishing:** `node tools/stamp.js` adds a version mark (`?v=…`, a hash of the file) to every script and stylesheet in `index.html` and `selftest.html`, so browsers load changed files at once and never mix old and new files.
 - `node tools/diagnose.js` groups any failures by template, level and kind with an example seed.
 - `node tools/coverage.js` regenerates `docs/COVERAGE.md` and `docs/CURRICULUM.md` from the code.
 
