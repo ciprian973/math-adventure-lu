@@ -353,7 +353,18 @@
       const R = w * h, t1 = Qn(bx * h, 2), t2 = Qn(w * cy, 2), t3 = Qn((w - bx) * (h - cy), 2), s = t1.add(t2).add(t3), x = Qn(R).sub(s);
       const shoe = Qn(Math.abs(A[0] * (B[1] - C[1]) + B[0] * (C[1] - A[1]) + C[0] * (A[1] - B[1])), 2);
       const fig = F.coord(10, 10, { polygons: [{ pts: [A, B, C] }], points: [{ x: A[0], y: A[1], label: 'A' }, { x: B[0], y: B[1], label: 'B' }, { x: C[0], y: C[1], label: 'C' }] });
-      const v = { a: { k: 'c.coordNamed', v: { n: 'A', x: A[0], y: A[1] } }, b: { k: 'c.coordNamed', v: { n: 'B', x: B[0], y: B[1] } }, c: { k: 'c.coordNamed', v: { n: 'C', x: C[0], y: C[1] } }, w, h, rr: R, t1, t2, t3, s, x };
+      // the explanation draws what it talks about: the rectangle (dashed) and the three corner triangles, each with its area
+      const P1 = [X0(ox), oy + h], P2 = [X0(ox + w), oy], P3 = [X0(ox + w), oy + h];
+      const corners = [[A, B, P1, t1], [A, C, P2, t2], [B, C, P3, t3]];
+      const exFig = { html: lang => F.coord(10, 10, {
+        cell: 24, label: '',
+        polygons: [{ pts: [[ox, oy], [ox + w, oy], [ox + w, oy + h], [ox, oy + h]], cls: 'frame' }]
+          .concat(corners.map(([p, q, o], i) => ({ pts: [p, q, o], cls: 'corner c' + (i + 1) }))).concat([{ pts: [A, B, C] }]),
+        texts: corners.filter(c => c[3].gt(1)).map(([p, q, o, t]) => ({ x: (p[0] + q[0] + o[0]) / 3, y: (p[1] + q[1] + o[1]) / 3 - 0.25, t: MQ.fmtNum(t, lang), cls: 'b sm' })),
+        points: [{ x: A[0], y: A[1], label: 'A' }, { x: B[0], y: B[1], label: 'B' }, { x: C[0], y: C[1], label: 'C' }] }) };
+      const half = (p, q, t) => m('t.x_ef_coord.tri.half', { p, q, t });
+      const v = { a: { k: 'c.coordNamed', v: { n: 'A', x: A[0], y: A[1] } }, b: { k: 'c.coordNamed', v: { n: 'B', x: B[0], y: B[1] } }, c: { k: 'c.coordNamed', v: { n: 'C', x: C[0], y: C[1] } }, w, h, rr: R, t1, t2, t3, s, x,
+        x1: ox, x2: ox + w, y1: oy, y2: oy + h, e1: half(bx, h, t1), e2: half(w, cy, t2), e3: half(w - bx, h - cy, t3), f: exFig };
       return pack(K, v, one(x), ans(x), { figure: fig, wrong: wrongDec([Qn(R, 2)], x), diagnose: diag([[Qn(R, 2), K('m1', v)]]), selfCheck: () => shoe.eq(x) });
     },
     /* map scale, then a bike ride */
