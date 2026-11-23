@@ -20,6 +20,38 @@
     return `<table class="pvchart"><tr>${th}</tr><tr>${td}</tr></table>`;
   }
 
+  /* ---------------- big_words: large whole numbers in words ↔ digits ----------------
+   * German and Luxembourgish say the units before the tens (vierundsechzig = 64), French and Romanian do not:
+   * the wrong options are exactly that inversion, in the units group, in the thousands group, or both. */
+  const swapLast2 = v => { const t = Math.floor(v / 10) % 10, u = v % 10; return v - 10 * t - u + 10 * u + t; };
+  const swapK = v => { const k = Math.floor(v / 1000) % 1000; return v - k * 1000 + swapLast2(k) * 1000; };
+  const okPair = x => { const t = Math.floor(x / 10) % 10, u = x % 10; return t >= 2 && u >= 1 && t !== u; };   // 21–99, units ≠ tens
+  T.add({
+    id: 'big_words', stage: 'no_big', objectives: ['NO.4.1', 'NO.1.9'], mt: [],
+    gen(r, L) {
+      const maxM = L === 1 ? 0 : L === 2 ? 0 : L === 3 ? 9 : 99;
+      let n, g = 0;
+      do {
+        const mm = maxM ? r.int(1, maxM) : 0, k = L === 1 ? r.int(1, 99) : r.int(1, 999), u = r.int(1, 999);
+        n = mm * 1e6 + k * 1000 + u;
+      } while ((!okPair(n % 1000) || !okPair(Math.floor(n / 1000) % 1000) || (n >= 1e6 && Math.floor(n / 1e6) > 100 && [1, 2].includes(Math.floor(n / 1e6) % 100))) && ++g < 500);
+      const groups = lang => MQ.numwords.groups(n, lang).map(x => x.w + ' → ' + MQ.fmtNum(x.v, lang)).join('<br>');
+      const ex = m('t.big_words.ex', { g: { html: groups } });
+      const hints = [m('t.big_words.h1'), m('t.big_words.h2'), m('t.big_words.h3')];
+      if (L === 1 || L === 3) {
+        // L1: words → which digits?  L3: digits → which words?
+        const vals = [n, swapLast2(n), swapK(n), swapK(swapLast2(n))];
+        const why = v => v === swapLast2(n) || v === swapK(n) || v === swapK(swapLast2(n)) ? m('t.big_words.m.swap') : null;
+        const opts = r.shuffle(vals.map(v => ({ label: L === 1 ? m('c.num', { x: v }) : m('c.wordsOf', { w: { wint: v } }), correct: v === n, why: v === n ? null : why(v) })));
+        return { prompt: L === 1 ? m('t.big_words.q1', { w: { wint: n } }) : m('t.big_words.q3', { x: n }), widget: Object.assign({ type: 'mc', options: opts }, L === 1 ? { layout: 'row' } : {}),
+          answer: L === 1 ? m('c.num', { x: n }) : m('c.wordsOf', { w: { wint: n } }), explain: ex, hints };
+      }
+      return { prompt: m('t.big_words.q2', { w: { wint: n } }), widget: { type: 'input', fields: [field('a', new MQ.Q(n))] },
+        diagnose: v => v.a && [swapLast2(n), swapK(n), swapK(swapLast2(n))].some(w => v.a.eq(w)) ? m('t.big_words.m.swap') : null,
+        answer: m('c.num', { x: n }), explain: ex, hints, wrong: [{ fields: { a: String(swapLast2(n)) } }] };
+    }
+  });
+
   /* ---------------- pv_digit ---------------- */
   T.add({
     id: 'pv_digit', stage: 'no_big', objectives: ['NO.4.1', 'NO.1.9', 'NO.C1'], mt: ['MT.16'],

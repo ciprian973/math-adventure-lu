@@ -43,6 +43,7 @@
   }
   function de(n) {
     if (n === 0) return 'null';
+    if (n >= 1e6) { const m = Math.floor(n / 1e6), r = n % 1e6; const head = m === 1 ? 'eine Million' : deUnder1000(m, false).replace(/(\d|[^n])ein$/, '$1eine') + ' Millionen'; return r ? head + ' ' + de(r) : head; }
     let s = '';
     const th = Math.floor(n / 1000), r = n % 1000;
     if (th) s += (th === 1 ? 'ein' : deUnder1000(th, false)) + 'tausend';
@@ -58,7 +59,8 @@
 
   /* ---------------- Luxembourgish (current orthography, Eifeler Regel) */
   const LB_U = ['null', 'eent', 'zwee', 'dräi', 'véier', 'fënnef', 'sechs', 'siwen', 'aacht', 'néng', 'zéng', 'eelef', 'zwielef', 'dräizéng', 'véierzéng', 'fofzéng', 'siechzéng', 'siwwenzéng', 'uechtzéng', 'nonzéng'];
-  const LB_T = ['', '', 'zwanzeg', 'drësseg', 'véierzeg', 'fofzeg', 'sechzeg', 'siwwenzeg', 'achtzeg', 'nonzeg'];
+  // 60 is "siechzeg" (Schwätzt Dir Lëtzebuergesch? A1, p. 24 and the page numbers 60–69)
+  const LB_T = ['', '', 'zwanzeg', 'drësseg', 'véierzeg', 'fofzeg', 'siechzeg', 'siwwenzeg', 'achtzeg', 'nonzeg'];
   /* Eifeler Regel: final -n is kept before a vowel and before n, d, t, z, h */
   const keepN = next => /^[aeiouäëéèîïöüyndtzh]/i.test(next);
   function lb99(n, inCompound) {
@@ -77,6 +79,8 @@
   }
   function lb(n) {
     if (n === 0) return 'null';
+    // millions: "eng Millioun", "zwou Milliounen" (feminine), "siwe Milliounen" (Eifeler Regel before M)
+    if (n >= 1e6) { const m = Math.floor(n / 1e6), r = n % 1e6; let w = m === 1 ? 'eng' : m === 2 ? 'zwou' : lbUnder1000(m).replace(/eent$/, 'een'); if (m > 2 && /n$/.test(w)) w = w.slice(0, -1); const head = w + (m === 1 ? ' Millioun' : ' Milliounen'); return r ? head + ' ' + lb(r) : head; }
     const th = Math.floor(n / 1000), r = n % 1000;
     let s = th ? (th === 1 ? '' : lbUnder1000(th).replace(/eent$/, 'een')) + 'dausend' : '';
     if (r) s += lbUnder1000(r);
@@ -97,6 +101,8 @@
     return RO_T[t] + ' și ' + unit;
   }
   function ro(n, fem = false) {
+    // millions: "un milion", "două milioane", "douăzeci și unu de milioane" (neuter: "două", but "unu")
+    if (n >= 1e6) { const m = Math.floor(n / 1e6), r = n % 1e6; const head = m === 1 ? 'un milion' : ro(m, true).replace(/ una$/, ' unu') + roDe(m) + 'milioane'; return r ? head + ' ' + ro(r, fem) : head; }
     if (n < 100) return ro99(n, fem);
     if (n < 1000) {
       const h = Math.floor(n / 100), r = n % 100;
@@ -117,7 +123,7 @@
   const EN_T = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
   function en99(n) { if (n < 20) return EN_U[n]; const t = Math.floor(n / 10), u = n % 10; return EN_T[t] + (u ? '-' + EN_U[u] : ''); }
   function enUnder1000(n) { const h = Math.floor(n / 100), r = n % 100; if (!h) return en99(r); return EN_U[h] + ' hundred' + (r ? ' and ' + en99(r) : ''); }
-  function en(n) { if (n < 1000) return enUnder1000(n); const th = Math.floor(n / 1000), r = n % 1000; return enUnder1000(th) + ' thousand' + (r ? (r < 100 ? ' and ' : ' ') + enUnder1000(r) : ''); }
+  function en(n) { if (n >= 1e6) { const m = Math.floor(n / 1e6), r = n % 1e6; return enUnder1000(m) + ' million' + (r ? (r < 100 ? ' and ' : ' ') + en(r) : ''); } if (n < 1000) return enUnder1000(n); const th = Math.floor(n / 1000), r = n % 1000; return enUnder1000(th) + ' thousand' + (r ? (r < 100 ? ' and ' : ' ') + enUnder1000(r) : ''); }
 
   const INT = { fr, de, lb, ro: n => ro(n, false), en };
   function integer(n, lang) { return INT[lang](n); }
@@ -173,6 +179,11 @@
     return n + '/' + d;
   }
 
-  MQ.numwords = { integer, decimal, fraction, FRACTION_DENS };
+  /* the words of a whole number split into its groups (millions, thousands, units), with the value of each */
+  function groups(n, lang) {
+    const parts = [[Math.floor(n / 1e6) * 1e6, 'M'], [Math.floor(n % 1e6 / 1000) * 1000, 'K'], [n % 1000, 'U']].filter(([v]) => v > 0);
+    return parts.map(([v]) => ({ v, w: integer(v, lang) }));
+  }
+  MQ.numwords = { integer, decimal, fraction, groups, FRACTION_DENS };
   if (typeof module !== 'undefined') module.exports = MQ;
 })(typeof window !== 'undefined' ? window : globalThis);
