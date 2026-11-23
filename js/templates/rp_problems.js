@@ -9,7 +9,7 @@
  * ===================================================================== */
 (function (root) {
   'use strict';
-  const MQ = root.MQ; const T = MQ.T, { Q, m, num, frac, fr, field, mcValues, mcMsgs, names } = T.h;
+  const MQ = root.MQ; const T = MQ.T, { Q, m, num, frac, fr, field, mcValues, mcMsgs, names, markDigit, chain } = T.h;
   const F = MQ.fig;
   const U = (val, u) => ({ unit: u, val: MQ.Q.of(val) });
   const EUR = v => ({ money: MQ.Q.of(v) });
@@ -151,8 +151,8 @@
         const items = r.sample(keys, L === 1 ? 2 : 3); const qty = items.map(() => L === 1 ? 1 : r.int(1, 3));
         const tot = items.reduce((acc, k, i) => acc.add(new MQ.Q(PRICES[k] * qty[i], 100)), new MQ.Q(0));
         const list = { list: items.map((k, i) => m('t.rp_table.item', { q: qty[i], i: { k: 'fouer.' + k } })), sep: ', ' };
-        if (L === 3) { const pay = 20; const ch = new MQ.Q(pay).sub(tot); if (ch.n <= 0) return this.gen(r, L); return { prompt: m('t.rp_table.q3', { n, l: list, b: EUR(pay) }), figure: { htmlFig: tbl }, widget: { type: 'input', fields: [field('a', ch, { unit: '€' })] }, answer: m('c.eur', { x: EUR(ch) }), explain: m('t.rp_table.ex3', { t: EUR(tot), b: EUR(pay), x: EUR(ch) }) }; }
-        return { prompt: m('t.rp_table.q', { n, l: list }), figure: { htmlFig: tbl }, widget: { type: 'input', fields: [field('a', tot, { unit: '€' })] }, answer: m('c.eur', { x: EUR(tot) }), explain: m('t.rp_table.ex', { x: EUR(tot) }) };
+        if (L === 3) { const pay = 20; const ch = new MQ.Q(pay).sub(tot); if (ch.n <= 0) return this.gen(r, L); return { prompt: m('t.rp_table.q3', { n, l: list, b: EUR(pay) }), figure: { htmlFig: tbl }, widget: { type: 'input', fields: [field('a', ch, { unit: '€' })] }, answer: m('c.eur', { x: EUR(ch) }), explain: m('t.rp_table.ex3', { t: EUR(tot), b: EUR(pay), x: EUR(ch), l: { list: items.map((k, i) => ({ html: lang => MQ.fmtNum(qty[i], lang) + ' × ' + MQ.fmtNum(new MQ.Q(PRICES[k], 100), lang, { places: 2 }) + ' €' })), sep: ' + ' } }) }; }
+        return { prompt: m('t.rp_table.q', { n, l: list }), figure: { htmlFig: tbl }, widget: { type: 'input', fields: [field('a', tot, { unit: '€' })] }, answer: m('c.eur', { x: EUR(tot) }), explain: m('t.rp_table.ex', { x: EUR(tot), l: { list: items.map((k, i) => ({ html: lang => MQ.fmtNum(qty[i], lang) + ' × ' + MQ.fmtNum(new MQ.Q(PRICES[k], 100), lang, { places: 2 }) + ' €' })), sep: ' + ' } }) };
       }
       const k = r.pick(['bumper', 'wheel']); const single = new MQ.Q(PRICES[k], 100); const card = new MQ.Q(r.pick([25, 30])); const rides = r.int(9, 12);
       const diff = single.mul(rides).sub(card);
@@ -174,7 +174,8 @@
       }
       if (r.chance(0.5)) {
         const a = r.pick([8, 10, 12, 15]), k = r.pick([2, 3, 4]), b = a * k, t = k * r.int(2, 8);
-        return { prompt: m('t.rp_prop.q4g', { a, b, t }), figure: (() => { const g = (cx, cy, R, n) => { let s = `<circle class="gear" cx="${cx}" cy="${cy}" r="${R}"/>`; for (let i = 0; i < n; i++) { const an = 2 * Math.PI * i / n; s += `<circle class="tooth" cx="${cx + (R + 4) * Math.cos(an)}" cy="${cy + (R + 4) * Math.sin(an)}" r="3"/>`; } return s; }; return F.svg(330, 170, g(70, 85, 34, a) + g(70 + 34 + 8 + 70, 85, 70, Math.min(b, 60)) + F.text(70, 90, 'A', 'tx b') + F.text(252, 90, 'B', 'tx b'), ''); })(), widget: { type: 'input', fields: [field('a', new MQ.Q(t * a, b))] }, diagnose: v => v.a && v.a.eq(t * k) ? m('t.rp_prop.m.gearsInverse') : null, answer: m('c.num', { x: t * a / b }), explain: m('t.rp_prop.ex4g', { a, b, t, n: t * a, x: t * a / b }) };
+        return { prompt: m('t.rp_prop.q4g', { a, b, t }), figure: (() => { const g = (cx, cy, R, n) => { let s = `<circle class="gear" cx="${cx}" cy="${cy}" r="${R}"/>`; for (let i = 0; i < n; i++) { const an = 2 * Math.PI * i / n; s += `<circle class="tooth" cx="${cx + (R + 4) * Math.cos(an)}" cy="${cy + (R + 4) * Math.sin(an)}" r="3"/>`; } return s; }; return F.svg(330, 170, g(70, 85, 34, a) + g(70 + 34 + 8 + 70, 85, 70, Math.min(b, 60)) + F.text(70, 90, 'A', 'tx b') + F.text(252, 90, 'B', 'tx b'), ''); })(), // B is the big gear (b = k × a teeth): when B turns t times, t × b teeth pass, so the small gear A turns t × b : a = t × k times
+          widget: { type: 'input', fields: [field('a', new MQ.Q(t * k))] }, diagnose: v => v.a && v.a.eq(t / k) ? m('t.rp_prop.m.gearsInverse') : null, answer: m('c.num', { x: t * k }), explain: m('t.rp_prop.ex4g', { a, b, t, n: t * b, x: t * k }) };
       }
       const l1 = r.pick([2, 4, 5, 6]), unitP = MQ.Q.dec(r.int(6, 50) * 5, 2), p1 = unitP.mul(l1), l2 = r.intExcept(3, 12, [l1]);
       const res = unitP.mul(l2);
@@ -255,7 +256,11 @@
       if (type === 'mean') { const mean = new MQ.Q(vals.reduce((a, b) => a + b, 0), 7); const X = Math.round(mean.toNumber() / 100) * 100 + r.pick([-200, -100, 100, 200]); v.x = X; truth = mean.gt(X); }
       const others = types.filter(t => t !== type);
       const reasons = [{ label: m('t.rp_hypo.r.' + type), correct: true }].concat(r.sample(others, Math.min(2, others.length)).map(t => ({ label: m('t.rp_hypo.r.' + t), correct: false })));
-      return { prompt: m('t.rp_hypo.q', { s: m('t.rp_hypo.s.' + type, v) }), figure: { htmlFig: tbl }, widget: { type: 'tf', truth, reasons: r.shuffle(reasons) }, answer: m(truth ? 'c.true' : 'c.false'), explain: m('t.rp_hypo.ex.' + type, { ...v, mn: Math.min(...vals), mx: Math.max(...vals), mean: new MQ.Q(vals.reduce((a, b) => a + b, 0), 7).toNumber() === Math.round(new MQ.Q(vals.reduce((a, b) => a + b, 0), 7).toNumber()) ? new MQ.Q(vals.reduce((a, b) => a + b, 0), 7) : { raw: '≈ ' + Math.round(vals.reduce((a, b) => a + b, 0) / 7) }, s: vals.reduce((a, b) => a + b, 0) }) };
+      return { prompt: m('t.rp_hypo.q', { s: m('t.rp_hypo.s.' + type, v) }), figure: { htmlFig: tbl }, widget: { type: 'tf', truth, reasons: r.shuffle(reasons) }, answer: m(truth ? 'c.true' : 'c.false'), explain: (() => { const sum = vals.reduce((a, b) => a + b, 0), mean = new MQ.Q(sum, 7), mx = Math.max(...vals), mn = Math.min(...vals);
+          const t = m(truth ? 'c.true' : 'c.false'), k = vals.slice(1, 5).findIndex((x, i) => x <= vals[i]);
+          return m('t.rp_hypo.ex.' + type + (type === 'inc' ? (k < 0 ? 'Yes' : 'No') : ''), { ...v, t, mn, mx, s: sum, md: { k: 'day.' + days[vals.indexOf(mx)] },
+            meq: mean.isInt() ? { raw: '= ' } : { raw: '≈ ' }, mean: mean.isInt() ? mean : Math.round(mean.toNumber()),
+            d1: k < 0 ? null : { k: 'day.' + days[k] }, d2: k < 0 ? null : { k: 'day.' + days[k + 1] }, a: k < 0 ? 0 : vals[k], b: k < 0 ? 0 : vals[k + 1], l: chain(vals.slice(0, 5), '&lt;') }); })() };
     }
   });
 

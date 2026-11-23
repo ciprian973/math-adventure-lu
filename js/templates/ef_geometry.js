@@ -6,9 +6,11 @@
  * ===================================================================== */
 (function (root) {
   'use strict';
-  const MQ = root.MQ; const T = MQ.T, { Q, m, num, frac, fr, field, mcValues, mcMsgs, names } = T.h;
+  const MQ = root.MQ; const T = MQ.T, { Q, m, num, frac, fr, field, mcValues, mcMsgs, names, markDigit, chain } = T.h;
   const F = MQ.fig;
   const L4 = String.fromCharCode;
+  // a move on the grid, in words: "3 squares to the right, 2 up"
+  const moveW = (dx, dy) => ({ list: [dx > 0 ? { k: 'c.mv.r', v: { n: dx } } : dx < 0 ? { k: 'c.mv.l', v: { n: -dx } } : null, dy > 0 ? { k: 'c.mv.u', v: { n: dy } } : dy < 0 ? { k: 'c.mv.d', v: { n: -dy } } : null].filter(Boolean), sep: ', ' });
   const cm = (v, u = 'cm') => ({ unit: u, val: MQ.Q.of(v) });
 
   /* ================= cube-net folding (source of truth for nets) ====== */
@@ -100,7 +102,7 @@
         prompt: m(L === 3 ? 't.coord_plot.q3' : 't.coord_plot.q4'),
         figure: null,
         widget: { type: 'point', w: W, h: H, max: 1, targets: [D], given: [{ x: A[0], y: A[1], label: 'A' }, { x: B[0], y: B[1], label: 'B' }, { x: C[0], y: C[1], label: 'C' }], segs: [[A[0], A[1], B[0], B[1]], [B[0], B[1], C[0], C[1]]] },
-        answer: m('c.coordNamed', { n: 'D', x: D[0], y: D[1] }), explain: m(L === 3 ? 't.coord_plot.ex3' : 't.coord_plot.ex4', { x: D[0], y: D[1] })
+        answer: m('c.coordNamed', { n: 'D', x: D[0], y: D[1] }), explain: m(L === 3 ? 't.coord_plot.ex3' : 't.coord_plot.ex4', { x: D[0], y: D[1], v: moveW(C[0] - B[0], C[1] - B[1]), a: { k: 'c.coordNamed', v: { n: 'A', x: A[0], y: A[1] } } })
       };
     }
   });
@@ -129,7 +131,7 @@
         return {
           prompt: m('t.map_route.q2', { p: { k: 'place.' + from.type }, a: Math.abs(dx), d1: { k: dx > 0 ? 'dir.east' : 'dir.west' }, b: Math.abs(dy), d2: { k: dy > 0 ? 'dir.north' : 'dir.south' } }),
           figure: legend, widget: { type: 'point', w: W, h: H, max: 1, targets: [[from.x + dx, from.y + dy]], iconsFn: () => icons.map(ic => ({ ...ic })) },
-          answer: m('c.coord', { x: from.x + dx, y: from.y + dy }), explain: m('t.map_route.ex2', { x: from.x + dx, y: from.y + dy })
+          answer: m('c.coord', { x: from.x + dx, y: from.y + dy }), explain: m('t.map_route.ex2', { x: from.x + dx, y: from.y + dy, x0: from.x, y0: from.y, p: { k: 'place.' + from.type } })
         };
       }
       const to = r.pick(others.filter(o => o.x !== from.x && o.y !== from.y).concat(others).slice(0, 3));
@@ -139,7 +141,7 @@
           prompt: m('t.map_route.q3', { s: sc, a: { k: 'place.' + from.type }, b: { k: 'place.' + to.type } }), figure: fig,
           widget: { type: 'input', fields: [field('a', new MQ.Q(dist), { unit: 'm' })] },
           diagnose: v => v.a && v.a.eq(steps) ? m('t.map_route.m.scale', { s: sc }) : null,
-          answer: m('c.unitv', { x: cm(dist, 'm') }), explain: m('t.map_route.ex3', { n: steps, s: sc, x: dist }),
+          answer: m('c.unitv', { x: cm(dist, 'm') }), explain: m('t.map_route.ex3', { n: steps, s: sc, x: dist, h: Math.abs(to.x - from.x), v: Math.abs(to.y - from.y) }),
           wrong: [{ fields: { a: String(steps) } }]
         };
       }
@@ -399,7 +401,7 @@
     id: 'solid_name', stage: 'ef_solids', objectives: ['EF.2.7', 'EF.2.3', 'EF.C2', 'EF.2.5'], mt: ['MT.49'],
     gen(r, L) {
       if (L === 1) { const s = r.pick(SOLIDS); const opts = r.shuffle([s].concat(r.sample(SOLIDS.filter(x => x !== s), 3))); return { prompt: m('t.solid_name.q1'), figure: F.solid(s), widget: { type: 'mc', options: opts.map(o => ({ label: m('solid.' + o), correct: o === s })) }, answer: m('solid.' + s), explain: m('t.solid_name.d.' + s) }; }
-      if (L === 2) { const s = r.pick(SOLIDS); const opts = r.shuffle([s].concat(r.sample(SOLIDS.filter(x => x !== s && !(s === 'cube' && x === 'cuboid') && !(s === 'cuboid' && x === 'cube')), 3))); return { prompt: m('t.solid_name.q2', { d: m('t.solid_name.d.' + s) }), widget: { type: 'mc', options: opts.map(o => ({ label: m('solid.' + o), fig: F.solid(o, { size: 110 }), correct: o === s })) }, answer: m('solid.' + s), explain: m('t.solid_name.d.' + s) }; }
+      if (L === 2) { const s = r.pick(SOLIDS); const opts = r.shuffle([s].concat(r.sample(SOLIDS.filter(x => x !== s && !(s === 'cube' && x === 'cuboid') && !(s === 'cuboid' && x === 'cube')), 3))); return { prompt: m('t.solid_name.q2', { d: m('t.solid_name.d.' + s) }), widget: { type: 'mc', options: opts.map(o => ({ label: m('solid.' + o), fig: F.solid(o, { size: 110 }), correct: o === s })) }, answer: m('solid.' + s), explain: m('t.solid_name.why.' + s) }; }
       const pool = ['cube', 'cuboid', 'pyramid', 'tripyramid', 'prism', 'hexprism', 'cylinder', 'cone', 'sphere'];
       const items = r.sample(pool, 6);
       if (L === 3) return { prompt: m('t.solid_name.q3'), widget: { type: 'bins', bins: [m('t.solid_name.flat'), m('t.solid_name.curved')], items: items.map(s => ({ label: { k: 'c.fig', v: { f: { html: F.solid(s, { size: 90 }) } } }, bin: SOLID_CLASS[s] === 'round' ? 1 : 0, speak: m('solid.' + (s === 'tripyramid' ? 'pyramid' : s === 'hexprism' ? 'prism' : s)) })) }, answer: m('c.binsAnswer'), explain: m('t.solid_name.ex3') };
@@ -420,7 +422,7 @@
       return {
         prompt: m('t.solid_fve.q', { s: { k: 'solid.' + s } }), figure: F.solid(s),
         widget: { type: 'input', fields: [field('f', new MQ.Q(Fc), { label: m('w.faces') }), field('v', new MQ.Q(V), { label: m('w.vertices') }), field('e', new MQ.Q(E), { label: m('w.edges') })] },
-        answer: m('t.solid_fve.ans', { f: Fc, v: V, e: E }), explain: m('t.solid_fve.ex', { s: { k: 'solid.' + s }, f: Fc, v: V, e: E })
+        answer: m('t.solid_fve.ans', { f: Fc, v: V, e: E }), explain: m(/pyramid/.test(s) ? 't.solid_fve.pyr' : 't.solid_fve.prism', { s: { k: 'solid.' + s }, f: Fc, v: V, e: E, n: { cube: 4, cuboid: 4, pyramid: 4, tripyramid: 3, prism: 3, hexprism: 6 }[s] })
       };
     }
   });

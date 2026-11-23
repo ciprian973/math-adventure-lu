@@ -10,7 +10,7 @@
  * ===================================================================== */
 (function (root) {
   'use strict';
-  const MQ = root.MQ; const T = MQ.T, { m, field, names } = T.h;
+  const MQ = root.MQ; const T = MQ.T, { m, field, names, markDigit, chain } = T.h;
   const F = MQ.fig, Qn = (a, b) => b == null ? MQ.Q.of(a) : new MQ.Q(a, b);
   const U = (val, u) => ({ unit: u, val: MQ.Q.of(val) });
   const EUR = v => ({ money: MQ.Q.of(v) });
@@ -109,7 +109,7 @@
         const [p1, q1] = r.pick(FRACS), [p2, q2] = r.pick(FRACS), k = r.int(1, 12), Tt = q1 * q2 * k;
         if (Tt < 30 || Tt > 600) continue;
         const mid = Tt / q1 * (q1 - p1), left = mid / q2 * (q2 - p2);
-        const v = { n: names(r, 1)[0], a: fr(p1, q1), b: fr(p2, q2), r: left, ca: fr(q1 - p1, q1), cb: fr(q2 - p2, q2), mm: mid, x: Tt };
+        const v = { n: names(r, 1)[0], a: fr(p1, q1), b: fr(p2, q2), r: left, ca: fr(q1 - p1, q1), cb: fr(q2 - p2, q2), mm: mid, x: Tt, na: q1 - p1, qa: q1, ua: mid / (q1 - p1), nb: q2 - p2, qb: q2, ub: left / (q2 - p2) };
         const rest = Qn(1).sub(Qn(p1, q1)).sub(Qn(p2, q2)); const w1 = rest.n > 0 ? Qn(left).div(rest) : null;
         return pack(K, v, one(Qn(Tt), { unit: '€' }), m('c.eur', { x: EUR(Tt) }), { wrong: wrongs([w1 && w1.isInt() ? w1 : null], Tt), diagnose: diag([[w1, K('m1', v)]]) });
       }
@@ -272,7 +272,7 @@
         if (!MQ.evalExpr(tk).eq(Qn(x))) continue;
         // the same, but always from left to right (ignoring that × and : go first)
         const l2r = (() => { const p1 = (C - D) * E, p2 = (G + H) * I - J; if (p1 < 0 || p2 <= 0) return null; const s = (((A - B) * p1) + Fv); if (A - B < 0 || s % p2) return null; return s / p2; })();
-        const v = { t: { expr: tk }, a: A, b: B, c: C, d: D, ee: E, g: G, hh: H, ii: I, j: J, f: Fv, p1: e1, p2: den, bp: B * e1, q, x };
+        const v = { t: { expr: tk }, a: A, b: B, c: C, d: D, ee: E, g: G, hh: H, ii: I, j: J, f: Fv, p1: e1, p2: den, bp: B * e1, q, x, st: { html: lang => MQ.calcSteps(tk).map(s => MQ.exprToString(s, lang)).join(' =<br>') } };
         return pack(K, v, one(Qn(x)), ans(x), { wrong: wrongs([l2r], x), diagnose: diag([[l2r != null && l2r !== x ? l2r : null, K('m1', v)]]) });
       }
     }
@@ -286,7 +286,7 @@
         const rs = ms.map(mo => r.int(1, mo - 1));
         let x = null; for (let n = 1; n <= 600; n++) if (ms.every((mo, i) => n % mo === rs[i])) { x = n; break; }
         if (x == null || x < 12) continue;
-        const v = { m1: ms[0], r1: rs[0], m2: ms[1], r2: rs[1], m3: ms[2], r3: rs[2], x,
+        const v = { m1: ms[0], r1: rs[0], m2: ms[1], r2: rs[1], m3: ms[2], r3: rs[2], x, lst: raw(Array.from({ length: Math.floor((x - rs[0]) / ms[0]) + 1 }, (_, i) => rs[0] + i * ms[0]).filter(n => n > 0).join(', ')),
           chk: { list: ms.map(mo => ({ k: 'c.divrest', v: { a: x, b: mo, q: Math.floor(x / mo), r: x % mo } })), sep: ' ; ' } };
         return Object.assign(pack(K, v, one(Qn(x)), ans(x)), { prompt: K(nm === 2 ? 'q2' : 'q', v) });
       }
@@ -392,7 +392,7 @@
     line(r, K) {
       for (;;) {
         const k = r.pick([2, 3]), a = r.int(10, 40), d = 180 - (2 * k + 1) * a; if (d < 5 || d > 60) continue;
-        const v = { k, d, n: 2 * k + 1, a, b: k * a, x: k * a + d, s: 180 - d };
+        const v = { k, d, n: 2 * k + 1, a, b: k * a, x: k * a + d, s: 180 - d, k2: 2 * k };
         return pack(K, v, one(Qn(v.x)), m('c.deg', { x: v.x }));
       }
     }
@@ -504,7 +504,7 @@
         const e = r.pick([2, 3, 4]), a = r.int(7, 30), b = r.int(7, 25), c = r.int(5, 20);
         const fa = Math.floor(a / e), fb = Math.floor(b / e), fc = Math.floor(c / e), x = fa * fb * fc, w = Math.floor(a * b * c / (e ** 3));
         if (w === x) continue;
-        const v = { e, a, b, c, fa, fb, fc, x, vol: a * b * c, ve: e ** 3, w };
+        const v = { e, a, b, c, fa, fb, fc, x, vol: a * b * c, ve: e ** 3, w, ra: a % e, rb: b % e, rc: c % e };
         return pack(K, v, one(Qn(x)), ans(x), { wrong: wrongs([w], x), diagnose: diag([[w, K('m1', v)]]) });
       }
     }
@@ -565,7 +565,7 @@
       const d0 = r.int(0, 6), mo = r.int(2, 12), dd = r.int(1, MDAYS[mo - 1]);
       let n = dd - 1; for (let i = 0; i < mo - 1; i++) n += MDAYS[i];
       const q = Math.floor(n / 7), rr = n % 7, xi = (d0 + rr) % 7;
-      const v = { d0: { k: 'day.' + DAYS[d0] }, dd, mo: { k: 'month.' + mo }, n, q, rr, x: { k: 'day.' + DAYS[xi] } };
+      const v = { d0: { k: 'day.' + DAYS[d0] }, dd, mo: { k: 'month.' + mo }, n, q, rr, x: { k: 'day.' + DAYS[xi] }, l: raw(MDAYS.slice(0, mo - 1).map((x, i) => i === 0 ? x - 1 : x).concat([dd]).join(' + ')) };
       return pack(K, v, { type: 'mc', options: DAYS.map((d, i) => ({ label: m('day.' + d), correct: i === xi, why: null })) }, m('day.' + DAYS[xi]));
     }
   });
@@ -594,7 +594,7 @@
     /* folding a sheet of paper */
     fold(r, K) {
       const n = r.int(4, 7), s = 2 ** n, x = MQ.Q.dec(s, 1), w = MQ.Q.dec(2 * n, 1);
-      const v = { n, s, x };
+      const v = { n, s, x, p: raw(Array(n).fill(2).join(' × ')) };
       return pack(K, v, one(x, { unit: 'mm' }), m('c.unitv', { x: U(x, 'mm') }), { wrong: wrongDec([w], x), diagnose: diag([[w, K('m1', v)]]) });
     },
     /* a tap filling a bath, cl per second */
@@ -611,7 +611,7 @@
       for (;;) {
         const s = r.pick([20, 25, 40, 50]), a = r.int(2, 6), b = r.int(2, 6); if ((100 * a) % s || (100 * b) % s) continue;
         const na = 100 * a / s, nb = 100 * b / s, x = na * nb, w = Qn(a * b * 100, s);
-        const v = { s, a, b, na, nb, x, ab: a * b };
+        const v = { s, a, b, na, nb, x, ab: a * b, ac: 100 * a, bc: 100 * b };
         return pack(K, v, one(Qn(x)), ans(x), { wrong: wrongDec([w], x), diagnose: diag([[w, K('m1', v)]]) });
       }
     }
@@ -647,7 +647,7 @@
       for (;;) {
         const k = r.int(3, 6), j = r.int(2, k - 1), n = r.int(2, 20), num = n * (j - 1), den = k - j; if (num % den) continue;
         const s = num / den, f = k * s; if (s < 3 || s > 15 || f < 25 || f > 55) continue;
-        const v = { k, j, n, x: s, f, s2: s + n, f2: f + n };
+        const v = { k, j, n, x: s, f, s2: s + n, f2: f + n, ps: s - 1, pf: k * (s - 1), ps2: s - 1 + n, pf2: k * (s - 1) + n };
         return pack(K, v, one(Qn(s)), m('t.x_rp_analyse.ages.a', { x: s }));
       }
     },
@@ -704,7 +704,7 @@
       const tb = Array.from({ length: a + 1 }, () => Array(b + 1).fill(1));
       for (let i = 1; i <= a; i++) for (let j = 1; j <= b; j++) tb[i][j] = tb[i - 1][j] + tb[i][j - 1];
       const x = tb[a][b];
-      const v = { a, b, x, ab: a * b };
+      const v = { a, b, x, ab: a * b, tb: { html: lang => '<span class="pgrid">' + tb.slice().reverse().map(row => row.map(n => '<span>' + MQ.fmtNum(n, lang) + '</span>').join('')).join('<br>') + '</span>' } };
       return pack(K, v, one(Qn(x)), ans(x), { figure: gridFig(b, a, { marks: [{ x: 0, y: 0, t: 'S', dx: -2, dy: 26 }, { x: b, y: a, t: 'F', dx: 14, dy: -8 }] }), wrong: wrongs([a * b, a + b], x), diagnose: diag([[a * b, K('m1', v)]]) });
     },
     /* a sequence: × a + b */
@@ -713,7 +713,7 @@
         const s0 = r.int(1, 6), a = r.int(2, 3), b = r.int(0, 4), k = r.int(6, 8); if (a === 2 && b === 0 && s0 === 1) continue;
         const t = [s0]; while (t.length < k) t.push(t[t.length - 1] * a + b);
         if (t[k - 1] > 50000) continue;
-        const v = { l: raw(t.slice(0, 4).join(', ')), k, a, b, all: raw(t.join(', ')), x: t[k - 1] };
+        const v = { l: raw(t.slice(0, 4).join(', ')), k, a, b, all: raw(t.join(', ')), x: t[k - 1], ru: raw('× ' + a + (b ? ' + ' + b : '')) };
         return Object.assign(pack(K, v, one(Qn(t[k - 1])), ans(t[k - 1])), { hints: [K('h1', v), K(b ? 'h2' : 'h2b', v), K('h3', v)] });
       }
     },
@@ -721,7 +721,7 @@
     seqdiff(r, K) {
       const s0 = r.int(2, 10), d0 = r.int(1, 5), dd = r.int(2, 4), k = r.int(8, 10);
       const t = [s0]; for (let i = 0; t.length < k; i++) t.push(t[t.length - 1] + d0 + i * dd);
-      const v = { l: raw(t.slice(0, 5).join(', ')), k, d0, dd, all: raw(t.join(', ')), x: t[k - 1] };
+      const v = { l: raw(t.slice(0, 5).join(', ')), k, d0, dd, all: raw(t.join(', ')), x: t[k - 1], diffs: raw(t.slice(1).map((x, i) => '+' + (x - t[i])).join(', ')) };
       return pack(K, v, one(Qn(t[k - 1])), ans(t[k - 1]));
     }
   });

@@ -93,6 +93,18 @@
   const NAMES = ['Lena', 'Noah', 'Emma', 'Luca', 'Mia', 'Gabriel', 'Léa', 'Ben', 'Sofia', 'Tom', 'Lara', 'Diogo', 'Yara', 'Max', 'Ana', 'Leo', 'Zoé', 'Elias', 'Nora', 'Liam'];
   const names = (r, k) => r.sample(NAMES, k);
 
-  T.h = { Q, m, num, frac, fr, unit, money, field, mcValues, mcMsgs, names, NAMES };
+  /* explanation helpers: a number with the digit at place p marked (p = 0 units, 1 tens, −1 tenths …),
+     and a list of values joined by a sign, written with the same number of decimals if wanted */
+  const markDigit = (x, p, opts = {}) => ({ html: lang => {
+    const s = MQ.fmtNum(x, lang, opts), dec = MQ.fmtNum(new MQ.Q(3, 2), lang).charAt(1);
+    let i = s.indexOf(dec); if (i < 0) i = s.length;
+    const isD = c => c >= '0' && c <= '9';
+    let j = -1;
+    if (p >= 0) { let k = -1; for (let t = i - 1; t >= 0; t--) if (isD(s[t]) && ++k === p) { j = t; break; } }
+    else { let k = 0; for (let t = i + 1; t < s.length; t++) if (isD(s[t]) && --k === p) { j = t; break; } }
+    return j < 0 ? s : s.slice(0, j) + '<b class="mark">' + s[j] + '</b>' + s.slice(j + 1);
+  } });
+  const chain = (vals, sign, opts = {}) => ({ html: lang => vals.map(v => v instanceof MQ.Q || typeof v === 'number' ? MQ.fmtNum(v, lang, opts) : v && v.k ? MQ.tm(v, lang) : MQ.fmtVal(v, lang)).join(' ' + sign + ' ') });
+  T.h = { Q, m, num, frac, fr, unit, money, field, mcValues, mcMsgs, names, NAMES, markDigit, chain };
   if (typeof module !== 'undefined') module.exports = MQ;
 })(typeof window !== 'undefined' ? window : globalThis);

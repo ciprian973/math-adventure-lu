@@ -6,7 +6,7 @@
  * ===================================================================== */
 (function (root) {
   'use strict';
-  const MQ = root.MQ; const T = MQ.T, { Q, m, num, frac, fr, field, mcValues, mcMsgs, names } = T.h;
+  const MQ = root.MQ; const T = MQ.T, { Q, m, num, frac, fr, field, mcValues, mcMsgs, names, markDigit, chain } = T.h;
   const F = MQ.fig;
   const U = (val, u, places) => ({ unit: u, val: MQ.Q.of(val), places });
   const P10 = e => e >= 0 ? new MQ.Q(Math.pow(10, e)) : new MQ.Q(1, Math.pow(10, -e));
@@ -87,10 +87,12 @@
         if (seen.some(s => s.eq(base))) continue;
         // keep values in a comparable range (within ×1000 of each other)
         if (seen.length && seen.some(s => s.div(base).toNumber() > 1000 || base.div(s).toNumber() > 1000)) continue;
-        seen.push(base); items.push({ label: m('c.unitv', { x: U(v, u) }), key: base });
+        seen.push(base); items.push({ label: m('c.unitv', { x: U(v, u) }), key: base, u, v });
       }
       if (items.length < 4) return this.gen(r, L);
-      return { prompt: m('c.orderAsc'), widget: { type: 'order', items: r.shuffle(items) }, answer: m('c.orderAnswer'), explain: m('t.compare_qty.ex'), hints: [m('t.compare_qty.h1'), m('t.compare_qty.h2'), m('t.compare_qty.h3')] };
+      return { prompt: m('c.orderAsc'), widget: { type: 'order', items: r.shuffle(items) }, answer: m('c.orderAnswer'), explain: (() => { const minE = Math.min(...items.map(it => ex[it.u])), un = Object.keys(ex).find(k => ex[k] === minE);
+        const sorted = items.slice().sort((p, q) => p.key.cmp(q.key));
+        return m('t.compare_qty.ex', { u: { raw: MQ.unitStr(un) }, l: chain(sorted.map(it => { const w = it.v.mul(P10(ex[it.u] - minE)); return { html: lang => MQ.fmtNum(w, lang) + ' ' + MQ.unitStr(un) + (it.u !== un ? ' (' + MQ.tm(it.label, lang) + ')' : '') }; }), '&lt;') }); })(), hints: [m('t.compare_qty.h1'), m('t.compare_qty.h2'), m('t.compare_qty.h3')] };
     }
   });
 
@@ -148,7 +150,7 @@
         prompt: m('t.frac_qty.q', { a: qty, u: { raw: MQ.unitStr(small) } }),
         widget: { type: 'input', fields: [field('a', res, { unit: small })] },
         diagnose: v => v.a && big === 'h' && v.a.eq(new MQ.Q(whole * 100 + 100 * n / d)) ? m('t.frac_qty.m.hundred') : null,
-        answer: m('c.unitv', { x: U(res, small) }), explain: m('t.frac_qty.ex', { f: fr(n, d), b: { raw: '1 ' + MQ.unitStr(big) }, c: U(f, small), x: U(res, small), d, p: f / d }),
+        answer: m('c.unitv', { x: U(res, small) }), explain: m((whole ? 't.frac_qty.exWhole' : 't.frac_qty.ex') + (n === 1 ? 'One' : ''), { f: fr(n, d), b: { raw: '1 ' + MQ.unitStr(big) }, c: U(f, small), x: U(res, small), d, p: f / d, n, y: U(f * n / d, small), w: whole, wc: U(whole * f, small), wb: { raw: whole + ' ' + MQ.unitStr(big) } }),
         wrong: big === 'h' ? [{ fields: { a: String(whole * 100 + 100 * n / d) } }] : []
       };
     }
@@ -171,7 +173,11 @@
           prompt: m('t.time_dur.q.' + ctx, { t: { time: start }, d: { dur } }),
           widget: { type: 'input', fields: [field('a', end, { kind: 'time' })] },
           diagnose: v => v.a != null && v.a === start + Math.floor(dur / 60) * 100 + dur % 60 ? m('t.time_dur.m.hundred') : null,
-          answer: m('c.time', { t: { time: end } }), explain: m('t.time_dur.ex', { t: { time: start }, d: { dur }, x: { time: end } }),
+          answer: m('c.time', { t: { time: end } }), explain: (() => { const parts = []; let cur = start; const h = Math.floor(dur / 60); let mm = dur % 60;
+            if (h) { parts.push({ k: 'c.tplus', v: { a: { time: cur }, d: { dur: h * 60 }, b: { time: cur + h * 60 } } }); cur += h * 60; }
+            if (mm && cur % 60 + mm > 60) { const k = 60 - cur % 60; parts.push({ k: 'c.tplus', v: { a: { time: cur }, d: { dur: k }, b: { time: cur + k } } }); cur += k; mm -= k; }
+            if (mm) parts.push({ k: 'c.tplus', v: { a: { time: cur }, d: { dur: mm }, b: { time: cur + mm } } });
+            return m(parts.length > 1 ? 't.time_dur.exSteps' : 't.time_dur.ex', { t: { time: start }, d: { dur }, x: { time: end }, l: { list: parts, sep: '; ' } }); })(),
           hints: [m('t.time_dur.h1'), m('t.time_dur.h2'), m('t.time_dur.h3', { a: { time: start + Math.floor(dur / 60) * 60 } })]
         };
       }
@@ -213,12 +219,16 @@
         return {
           prompt: m(L === 1 ? 't.calendar.q1' : 't.calendar.q', { a: { date: { y, m: mo, d: d0 } }, n }),
           widget: { type: 'input', fields: [field('a', res, { kind: 'date' })] },
-          answer: m('c.date', { a: { date: res } }), explain: m(res.m !== mo ? 't.calendar.exMonth' : 't.calendar.ex', { a: { date: { y, m: mo, d: d0 } }, n, x: { date: res }, dim, mo: { k: 'month.' + mo } })
+          answer: m('c.date', { a: { date: res } }), explain: m(res.m !== mo ? 't.calendar.exMonth' : 't.calendar.ex', { a: { date: { y, m: mo, d: d0 } }, n, x: { date: res }, dim, mo: { k: 'month.' + mo }, r1: dim - d0, r2: n - (dim - d0), d: d0 })
         };
       }
       const a = MQ.dayIndex(y, r.int(1, 10), r.int(1, 28)); const b = a + r.int(20, 75);
       const A = fromIndex(a), B = fromIndex(b);
-      return { prompt: m('t.calendar.q4', { a: { date: A }, b: { date: B } }), widget: { type: 'input', fields: [field('a', new MQ.Q(b - a))] }, answer: m('c.num', { x: b - a }), explain: m('t.calendar.ex4', { a: { date: A }, b: { date: B }, x: b - a }) };
+      return { prompt: m('t.calendar.q4', { a: { date: A }, b: { date: B } }), widget: { type: 'input', fields: [field('a', new MQ.Q(b - a))] }, answer: m('c.num', { x: b - a }), explain: (() => { if (A.m === B.m) return m('t.calendar.ex4same', { a: { date: A }, b: { date: B }, x: b - a, p: B.d, q: A.d });
+        const parts = [{ k: 'c.calFirst', v: { mo: { k: 'month.' + A.m }, dim: MQ.daysInMonth(A.y, A.m), d: A.d, n: MQ.daysInMonth(A.y, A.m) - A.d } }]; const nums = [MQ.daysInMonth(A.y, A.m) - A.d];
+        for (let mo = A.m + 1; mo < B.m; mo++) { parts.push({ k: 'c.calMonth', v: { mo: { k: 'month.' + mo }, n: MQ.daysInMonth(A.y, mo) } }); nums.push(MQ.daysInMonth(A.y, mo)); }
+        parts.push({ k: 'c.calLast', v: { mo: { k: 'month.' + B.m }, n: B.d } }); nums.push(B.d);
+        return m('t.calendar.ex4', { a: { date: A }, b: { date: B }, x: b - a, l: { list: parts, sep: '; ' }, s: { raw: nums.join(' + ') } }); })() };
     }
   });
 
@@ -252,7 +262,9 @@
       if (L === 2) {
         const vals = r.sample([2000, 1000, 500, 200, 100, 50, 20, 10, 5, 2], r.int(4, 6)).sort((a, b) => b - a);
         const tot = vals.reduce((a, b) => a + b, 0);
-        return { prompt: m('t.money.q2'), figure: F.money(vals), widget: { type: 'input', fields: [field('a', new MQ.Q(tot, 100), { unit: '€' })] }, diagnose: v => v.a && v.a.eq(tot) ? m('t.money.m.cents') : null, answer: m('c.eur', { x: { money: new MQ.Q(tot, 100) } }), explain: m('t.money.ex2', { x: { money: new MQ.Q(tot, 100) } }) };
+        return { prompt: m('t.money.q2'), figure: F.money(vals), widget: { type: 'input', fields: [field('a', new MQ.Q(tot, 100), { unit: '€' })] }, diagnose: v => v.a && v.a.eq(tot) ? m('t.money.m.cents') : null, answer: m('c.eur', { x: { money: new MQ.Q(tot, 100) } }), explain: (() => { const notes = vals.filter(v => v >= 500), coins = vals.filter(v => v < 500), eur = v => ({ money: new MQ.Q(v, 100) }), sum = xs => xs.reduce((a, b) => a + b, 0);
+          const line = xs => ({ list: xs.map(eur), sep: ' + ' });
+          return m(notes.length && coins.length ? 't.money.ex2' : 't.money.ex2one', { n: line(notes), c: line(coins), sn: eur(sum(notes)), sc: eur(sum(coins)), a: line(vals), x: eur(tot) }); })() };
       }
       if (L === 3) {
         const price = MQ.Q.dec(r.int(120, 1890), 2); const note = [5, 10, 20, 50].find(n => n > price.toNumber() + 0.5) || 50;
@@ -266,7 +278,7 @@
       const p1 = ppk1.mul(g1).div(1000), p2 = ppk2.mul(g2).div(1000);
       if (p1.decimalPlaces() > 2 || p2.decimalPlaces() > 2) return this.gen(r, L);
       const cheaper = ppk1.lt(ppk2) ? 0 : 1;
-      return { prompt: m('t.money.q4', { a: U(g1, 'g'), p: { money: p1 }, b: U(g2, 'g'), q: { money: p2 } }), widget: { type: 'mc', options: [{ label: m('t.money.packA', { a: U(g1, 'g') }), correct: cheaper === 0, why: m('t.money.m.perKg') }, { label: m('t.money.packB', { b: U(g2, 'g') }), correct: cheaper === 1, why: m('t.money.m.perKg') }] }, answer: m(cheaper === 0 ? 't.money.packA' : 't.money.packB', { a: U(g1, 'g'), b: U(g2, 'g') }), explain: m('t.money.ex4', { a: { money: ppk1 }, b: { money: ppk2 } }) };
+      return { prompt: m('t.money.q4', { a: U(g1, 'g'), p: { money: p1 }, b: U(g2, 'g'), q: { money: p2 } }), widget: { type: 'mc', options: [{ label: m('t.money.packA', { a: U(g1, 'g') }), correct: cheaper === 0, why: m('t.money.m.perKg') }, { label: m('t.money.packB', { b: U(g2, 'g') }), correct: cheaper === 1, why: m('t.money.m.perKg') }] }, answer: m(cheaper === 0 ? 't.money.packA' : 't.money.packB', { a: U(g1, 'g'), b: U(g2, 'g') }), explain: m('t.money.ex4', { a: { money: ppk1 }, b: { money: ppk2 }, g1, g2, p1: { money: p1 }, p2: { money: p2 }, w: m(cheaper === 0 ? 't.money.packA' : 't.money.packB', { a: U(g1, 'g'), b: U(g2, 'g') }) }) };
     }
   });
 
@@ -348,7 +360,7 @@
       const fig = F.pieChart(parts.map(q => ({ q })));
       if (L === 1) { const opts = [[1, 2], [1, 4], [3, 4], [1, 8], [3, 8]].map(([n, d]) => new MQ.Q(n, d)); return { prompt: m('t.pie_read.q1', { l: String.fromCharCode(65 + i) }), figure: fig, widget: { type: 'mc', layout: 'row', options: r.shuffle(opts.filter(q => !q.eq(parts[i])).slice(0, 3).concat([parts[i]])).map(q => ({ label: frac(q.n, q.d), correct: q.eq(parts[i]) })) }, answer: m('c.num', { x: fr(parts[i].n, parts[i].d) }), explain: m('t.pie_read.ex1') }; }
       if (L === 2) return { prompt: m('t.pie_read.q2', { l: String.fromCharCode(65 + i) }), figure: fig, widget: { type: 'input', fields: [field('a', parts[i].mul(100), { unit: '%' })] }, answer: m('c.pctv', { x: parts[i].mul(100) }), explain: m('t.pie_read.ex2', { f: fr(parts[i].n, parts[i].d), x: parts[i].mul(100) }) };
-      if (L === 3) { const tot = r.pick([24, 40, 80, 120, 200]); return { prompt: m('t.pie_read.q3', { t: tot, l: String.fromCharCode(65 + i) }), figure: fig, widget: { type: 'input', fields: [field('a', parts[i].mul(tot))] }, answer: m('c.num', { x: parts[i].mul(tot) }), explain: m('t.pie_read.ex3', { f: fr(parts[i].n, parts[i].d), t: tot, x: parts[i].mul(tot) }) }; }
+      if (L === 3) { const tot = r.pick([24, 40, 80, 120, 200]); return { prompt: m('t.pie_read.q3', { t: tot, l: String.fromCharCode(65 + i) }), figure: fig, widget: { type: 'input', fields: [field('a', parts[i].mul(tot))] }, answer: m('c.num', { x: parts[i].mul(tot) }), explain: m(parts[i].n === 1 ? 't.pie_read.ex3one' : 't.pie_read.ex3', { f: fr(parts[i].n, parts[i].d), t: tot, x: parts[i].mul(tot), d: parts[i].d, n: parts[i].n, u: tot / parts[i].d, l: String.fromCharCode(65 + i) }) }; }
       // which pie matches the table?
       const tot = r.pick([8, 16, 24, 40]); const counts = parts.map(q => q.mul(tot).toNumber());
       const others = r.sample(sets.filter(s => s.length === parts.length && JSON.stringify(s.map(([n, d]) => n / d)) !== JSON.stringify(parts.map(q => q.toNumber()))), 2);

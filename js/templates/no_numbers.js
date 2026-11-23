@@ -5,7 +5,7 @@
  * ===================================================================== */
 (function (root) {
   'use strict';
-  const MQ = root.MQ; const T = MQ.T, { Q, m, num, frac, fr, field, mcValues, mcMsgs } = T.h;
+  const MQ = root.MQ; const T = MQ.T, { Q, m, num, frac, fr, field, mcValues, mcMsgs, markDigit, chain } = T.h;
   const P10 = p => p >= 0 ? new MQ.Q(Math.pow(10, p)) : new MQ.Q(1, Math.pow(10, -p));
   const SYM = { lt: { raw: '&lt;' }, eq: { raw: '=' }, gt: { raw: '&gt;' } };
   const symOpts = (r, cmp, whyMap = {}) => [['lt', -1], ['eq', 0], ['gt', 1]].map(([k, c]) => ({ label: { k: 'c.sym', v: { s: SYM[k] } }, correct: c === cmp, why: c !== cmp && whyMap[k] ? m(whyMap[k]) : null }));
@@ -90,7 +90,7 @@
           return null;
         },
         answer: m('c.num', { x: d }),
-        explain: m('t.pv_digit.ex', { place: { k: 'pl.' + target }, d }),
+        explain: m('t.pv_digit.ex', { place: { k: 'pl.' + target }, d, h: markDigit(value, target) }),
         wrong: places[target + 1] != null ? [{ fields: { a: String(places[target + 1]) } }] : []
       };
     }
@@ -145,7 +145,7 @@
         prompt: m(desc ? 'c.orderDesc' : 'c.orderAsc'),
         widget: { type: 'order', items: r.shuffle(items), desc },
         answer: m('c.orderAnswer'),
-        explain: m(L === 3 ? 't.big_order.ex3' : 't.big_order.ex')
+        explain: m(L === 3 ? 't.big_order.ex3' : 't.big_order.ex', { l: chain([...vals].sort((x, y) => desc ? y - x : x - y), desc ? '&gt;' : '&lt;') })
       };
     }
   });
@@ -208,7 +208,8 @@
         widget: { type: 'input', fields: [field('a', res)] },
         diagnose: v => v.a && v.a.eq(res.eq(up) ? down : up) ? m(res.eq(up) ? 't.rounding.m.trunc' : 't.rounding.m.up') : null,
         answer: m('c.num', { x: res }),
-        explain: m('t.rounding.ex', { n, down, up, x: res }),
+        explain: (() => { const pTo = Math.round(Math.log10(to.toNumber())), dd = Math.floor(n.div(to).mul(10).toNumber() + 1e-9) % 10;
+          return m(dd >= 5 ? 't.rounding.exUp' : 't.rounding.exDown', { n, down, up, x: res, g: dd, h: markDigit(n, pTo - 1), place: { k: 'pl.' + (pTo - 1) } }); })(),
         wrong: [{ fields: { a: MQ.fmtNum(res.eq(up) ? down : up, 'en').replace(/,/g, '') } }]
       };
     }
@@ -267,7 +268,15 @@
         prompt: m('t.dec_compare.q', { a, b: bDisp }),
         widget: { type: 'mc', layout: 'row', options: symOpts(r, cmp, { lt: 't.dec_compare.m.length', gt: 't.dec_compare.m.length', eq: 't.dec_compare.m.eq' }) },
         answer: m('c.cmpAnswer', { a, b: bDisp, s: SYM[cmp < 0 ? 'lt' : cmp > 0 ? 'gt' : 'eq'] }),
-        explain: m('t.dec_compare.ex', { a, b: bDisp })
+        explain: (() => { const pl = Math.max(a.decimalPlaces(), b.decimalPlaces(), L === 3 && cmp === 0 ? 2 : 0);
+          const pa = { html: lang => MQ.fmtNum(a, lang, { places: pl }) }, pb = { html: lang => MQ.fmtNum(b, lang, { places: pl }) };
+          const ia = Math.floor(a.toNumber() + 1e-9), ib = Math.floor(b.toNumber() + 1e-9);
+          const res = m('c.cmpAnswer', { a, b: bDisp, s: SYM[cmp < 0 ? 'lt' : cmp > 0 ? 'gt' : 'eq'] });
+          if (cmp === 0) return m('t.dec_compare.exEq', { a: pa, b: pb, r: res });
+          if (ia !== ib) return m('t.dec_compare.exInt', { a: pa, b: pb, i: ia, j: ib, r: res });
+          let k = 1; while (k <= pl && Math.floor(a.toNumber() * Math.pow(10, k) + 1e-9) % 10 === Math.floor(b.toNumber() * Math.pow(10, k) + 1e-9) % 10) k++;
+          const da = Math.floor(a.toNumber() * Math.pow(10, k) + 1e-9) % 10, db = Math.floor(b.toNumber() * Math.pow(10, k) + 1e-9) % 10;
+          return m('t.dec_compare.exPlace', { a: pa, b: pb, i: ia, place: { k: 'pl.-' + k }, da, db, s: SYM[da < db ? 'lt' : 'gt'], r: res }); })()
       };
     }
   });
@@ -287,7 +296,8 @@
       return {
         prompt: m(desc ? 'c.orderDesc' : 'c.orderAsc'),
         widget: { type: 'order', items: r.shuffle([...vals.values()].map(v => ({ label: num(v), key: v }))), desc },
-        answer: m('c.orderAnswer'), explain: m('t.dec_order.ex')
+        answer: m('c.orderAnswer'), explain: (() => { const vs = [...vals.values()].sort((x, y) => desc ? y.cmp(x) : x.cmp(y)), pl = Math.max(...vs.map(v => v.decimalPlaces()));
+          return m('t.dec_order.ex', { n: pl, l: chain(vs, desc ? '&gt;' : '&lt;', { places: pl }) }); })()
       };
     }
   });
@@ -436,7 +446,7 @@
         prompt: m('t.frac_shade.q', { x: fr(n, d) }),
         widget: { type: 'shade', kind, parts, target: n * k, cols: kind === 'set' ? Math.min(parts, 6) : undefined },
         diagnose: v => v.count === n && k > 1 ? m('t.frac_shade.m.parts', { p: parts, d }) : null,
-        answer: m('t.frac_shade.ans', { c: n * k, p: parts }), explain: m('t.frac_shade.ex', { x: fr(n, d), p: parts, d, k, c: n * k }),
+        answer: m('t.frac_shade.ans', { c: n * k, p: parts }), explain: m('t.frac_shade.ex', { x: fr(n, d), p: parts, d, k, c: n * k, n }),
         wrong: k > 1 ? [{ shaded: [...Array(n).keys()] }] : [{ shaded: [...Array(Math.min(parts, n + 1)).keys()] }]
       };
     }
@@ -487,7 +497,7 @@
         return {
           prompt: m('t.frac_compare.q4', { a: fr(a, b), b: fr(c, d) }),
           widget: { type: 'mc', options: r.shuffle([{ label: frac(corr.n, corr.d), correct: true }].concat(wr.map(q => ({ label: frac(q.n, q.d), correct: false, why: m('t.frac_compare.m.outside') })))) },
-          answer: m('c.num', { x: fr(corr.n, corr.d) }), explain: m('t.frac_compare.ex4', { a: fr(a, b), b: fr(c, d), x: fr(corr.n, corr.d) })
+          answer: m('c.num', { x: fr(corr.n, corr.d) }), explain: (() => { const cm = MQ.lcm(MQ.lcm(b, d), corr.d); return m('t.frac_compare.ex4', { a: fr(a, b), b: fr(c, d), x: fr(corr.n, corr.d), l: chain([fr(a * cm / b, cm), fr(corr.n * cm / corr.d, cm), fr(c * cm / d, cm)], '&lt;'), m: chain([fr(a, b), fr(corr.n, corr.d), fr(c, d)], '&lt;'), d: cm }); })()
         };
       }
       let a, b, c, d;
@@ -499,7 +509,7 @@
         prompt: m('t.frac_compare.q', { a: fr(a, b), b: fr(c, d) }),
         widget: { type: 'mc', layout: 'row', options: symOpts(r, cmp, L === 2 ? { lt: 't.frac_compare.m.bigDen', gt: 't.frac_compare.m.bigDen' } : L === 3 ? { lt: 't.frac_compare.m.common', gt: 't.frac_compare.m.common', eq: 't.frac_compare.m.common' } : {}) },
         answer: m('c.cmpAnswer', { a: fr(a, b), b: fr(c, d), s: SYM[cmp < 0 ? 'lt' : cmp > 0 ? 'gt' : 'eq'] }),
-        explain: (() => { const cm = MQ.lcm(b, d); return m(L === 1 ? 't.frac_compare.ex1' : L === 2 ? 't.frac_compare.ex2' : 't.frac_compare.ex3', { a: fr(a, b), b: fr(c, d), c: fr(a * cm / b, cm), e: fr(c * cm / d, cm) }); })()
+        explain: (() => { const cm = MQ.lcm(b, d); return m(L === 1 ? 't.frac_compare.ex1' : L === 2 ? 't.frac_compare.ex2' : 't.frac_compare.ex3', { a: b === cm ? fr(a, b) : chain([fr(a, b), fr(a * cm / b, cm)], '='), b: d === cm ? fr(c, d) : chain([fr(c, d), fr(c * cm / d, cm)], '='), c: fr(a * cm / b, cm), e: fr(c * cm / d, cm), r: m('c.cmpAnswer', { a: fr(a, b), b: fr(c, d), s: SYM[cmp < 0 ? 'lt' : cmp > 0 ? 'gt' : 'eq'] }) }); })()
       };
     }
   });
@@ -523,7 +533,10 @@
       return {
         prompt: m(desc ? 'c.orderDesc' : 'c.orderAsc'),
         widget: { type: 'order', items: r.shuffle([...vals.values()].map(o => ({ label: o.label, key: o.q }))), desc },
-        answer: m('c.orderAnswer'), explain: m(L === 2 ? 't.frac_order.ex2' : L === 4 ? 't.frac_order.ex4' : 't.frac_order.ex')
+        answer: m('c.orderAnswer'), explain: (() => { const os = [...vals.values()].sort((x, y) => desc ? y.q.cmp(x.q) : x.q.cmp(y.q)), sg = desc ? '&gt;' : '&lt;';
+          const cm = os.reduce((acc, o) => MQ.lcm(acc, o.q.d), 1);
+          const l = L === 4 ? chain(os.map(o => o.q), sg) : L === 2 ? chain(os.map(o => o.label), sg) : chain(os.map(o => fr(o.q.n * cm / o.q.d, cm)), sg);
+          return m(L === 1 ? 't.frac_order.ex1' : L === 2 ? 't.frac_order.ex2' : L === 4 ? 't.frac_order.ex4' : 't.frac_order.ex', { l, o: chain(os.map(o => o.label), sg), d: cm }); })()
       };
     }
   });
@@ -592,7 +605,8 @@
       const rights = chosen.map(p => right(new MQ.Q(p[0], p[1])));
       return {
         prompt: m('t.multi_rep.q'), widget: { type: 'match', left, right: rights },
-        answer: m('c.matchAnswer'), explain: m(L >= 3 ? 't.multi_rep.ex3' : 't.multi_rep.ex')
+        answer: m('c.matchAnswer'), explain: m(L >= 3 ? 't.multi_rep.ex3' : 't.multi_rep.ex', { l: { html: lang => chosen.map(p => { const q = new MQ.Q(p[0], p[1]), h = MQ.lcm(p[1], L >= 3 ? 100 : 10) === (L >= 3 ? 100 : 10) ? (L >= 3 ? 100 : 10) : p[1];
+            return MQ.tm(frac(p[0], p[1]), lang) + (h !== p[1] ? ' = ' + MQ.tm(frac(p[0] * h / p[1], h), lang) : '') + ' = ' + MQ.fmtNum(q, lang) + (L >= 3 ? ' = ' + MQ.fmtNum(q.mul(100), lang) + ' %' : ''); }).join('<br>') } })
       };
     }
   });

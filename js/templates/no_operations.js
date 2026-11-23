@@ -6,9 +6,15 @@
  * ===================================================================== */
 (function (root) {
   'use strict';
-  const MQ = root.MQ; const T = MQ.T, { Q, m, num, frac, fr, field, mcValues, mcMsgs, names } = T.h;
+  const MQ = root.MQ; const T = MQ.T, { Q, m, num, frac, fr, field, mcValues, mcMsgs, names, markDigit, chain } = T.h;
   const E = (...tk) => ({ expr: tk });
   const sOp = op => ({ html: () => op === '*' ? MQ.i18n.mulSign : op === '/' ? MQ.i18n.divSign : op === '-' ? '−' : '+' });
+  // multiples of a up to l (shortened in the middle when long)
+  const mults = (a, l) => { const n = l / a, xs = Array.from({ length: n }, (_, i) => a * (i + 1)); return (n <= 12 ? xs : xs.slice(0, 5).concat(['…'], xs.slice(-2))).map(v => v === '…' ? { raw: '…' } : v === l ? { html: lang => '<b>' + MQ.fmtNum(v, lang) + '</b>' } : v); };
+  // a list of small calculations "a op b = c", joined by sep (for explanations)
+  const calcList = (rows, sep = '; ') => ({ html: lang => rows.map(([x, op, y]) => MQ.exprToString([x, op, y], lang) + ' = ' + MQ.fmtNum(MQ.evalExpr([x, op, y]), lang)).join(sep) });
+  // the whole calculation step by step: 13 + 8 × 4 = 13 + 32 = 45
+  const stepsOf = tk => ({ html: lang => MQ.calcSteps(tk).map(s => MQ.exprToString(s, lang)).join(' = ') });
 
   /* column layout on squared paper (HTML) */
   function columns(rows, op, lang, result = null) {
@@ -41,7 +47,10 @@
         prompt: m('t.written_op.q'), figure: lang => columns([a, b], op, lang),
         widget: { type: 'input', fields: [field('a', new MQ.Q(res))] },
         diagnose: v => v.a && mis != null && v.a.eq(mis) ? m(misKey) : (v.a && op === '*' && v.a.eq(a * (b % 10)) ? m('t.written_op.m.partial') : null),
-        answer: m('c.num', { x: res }), explain: m('t.written_op.ex' + (op === '*' ? 'Mul' : op === '-' ? 'Sub' : 'Add'), { a, b, x: res, u: b % 10, t: b - b % 10, p1: a * (b % 10), p2: a * (b - b % 10) }),
+        answer: m('c.num', { x: res }), explain: op === '*' && (b >= 100 || b % 10 === 0)
+          ? (() => { const parts = String(b).split('').reverse().map((dg, i) => +dg * Math.pow(10, i)).filter(v => v > 0);
+            return m('t.written_op.exMulN', { a, b, x: res, l: calcList(parts.map(v => [a, '*', v])), s: { html: lang => parts.map(v => MQ.fmtNum(a * v, lang)).join(' + ') } }); })()
+          : m('t.written_op.ex' + (op === '*' ? 'Mul' : op === '-' ? 'Sub' : 'Add'), { a, b, x: res, u: b % 10, t: b - b % 10, p1: a * (b % 10), p2: a * (b - b % 10) }),
         wrong: mis != null ? [{ fields: { a: String(mis) } }] : [],
         ranges: [['res', res, 0, 99999999]]
       };
@@ -61,7 +70,8 @@
           prompt: m('t.euclid.q4', { a: Dn, b: d }),
           widget: { type: 'input', fields: [field('q', q)] },
           diagnose: v => v.q && v.q.eq(MQ.Q.of(qi + '.' + rem)) ? m('t.euclid.m.remainderAsDecimal') : null,
-          answer: m('c.num', { x: q }), explain: m('t.euclid.ex4', { a: Dn, b: d, q: qi, r: rem, x: q }),
+          answer: m('c.num', { x: q }), explain: (() => { const rows = []; let rr = rem, k = 0; while (rr > 0 && k++ < 3) { const dd = Math.floor(rr * 10 / d); rows.push({ k: 't.euclid.step', v: { r: rr * 10, b: d, d: dd, s: rr * 10 - dd * d } }); rr = rr * 10 - dd * d; }
+            return m('t.euclid.ex4', { a: Dn, b: d, q: qi, r: rem, x: q, l: { list: rows, sep: '; ' } }); })(),
           wrong: [{ fields: { q: qi + ',' + rem } }],
           ranges: [['dividend', Dn, 1000, 9999], ['divisor', d, 10, 99], ['places', q.decimalPlaces(), 1, 2]]
         };
@@ -145,7 +155,9 @@
         prompt: m('c.calc', { e: E(a, op, b) }),
         widget: { type: 'input', fields: [field('a', res)] },
         diagnose: v => v.a && mis && v.a.eq(mis) && !mis.eq(res) ? m('t.dec_addsub.m.align') : null,
-        answer: m('c.num', { x: res }), explain: m('t.dec_addsub.ex', { a, b, x: res }),
+        answer: m('c.num', { x: res }), explain: (() => { const pl = Math.max(da, db), w = lang => [a, b, res].map(v => MQ.fmtNum(v, lang, { places: pl }));
+          const col = { html: lang => { const [sa, sb, sr] = w(lang), n = Math.max(sa.length, sb.length, sr.length) + 2; return '<span class="cols">' + ('  ' + sa).padStart(n) + '\n' + ((op === '+' ? '+ ' : '− ') + sb).padStart(n) + '\n' + '─'.repeat(n) + '\n' + sr.padStart(n) + '</span>'; } };
+          return m(da !== db ? 't.dec_addsub.exZeros' : 't.dec_addsub.ex', { a, b, x: res, n: pl, c: col }); })(),
         wrong: mis && !mis.eq(res) ? [{ fields: { a: mis.toDecimalString() } }] : [],
         ranges: [['res', res.toNumber(), 0, 100000]]
       };
@@ -194,7 +206,7 @@
         widget: { type: 'input', fields: [field('a', res)] },
         diagnose: v => v.a && mis && v.a.eq(mis) && !mis.eq(res) ? m('t.frac_addsub.m.addAll') : (v.a && b !== d && v.a.eq(new MQ.Q(op === '+' ? a + c : Math.max(a - c, 0), cm)) && !res.eq(new MQ.Q(op === '+' ? a + c : a - c, cm)) ? m('t.frac_addsub.m.numOnly') : null),
         answer: m('c.num', { x: fr(res.n, res.d) }),
-        explain: m(b === d ? 't.frac_addsub.exSame' : 't.frac_addsub.exDiff', { a: fr(a, b), c: fr(c, d), a2: fr(a * cm / b, cm), c2: fr(c * cm / d, cm), x: fr(res.n, res.d), cm, op: { raw: op === '+' ? '+' : '−' }, s: fr(op === '+' ? a * cm / b + c * cm / d : a * cm / b - c * cm / d, cm) }),
+        explain: m(b === d ? 't.frac_addsub.exSame' : 't.frac_addsub.exDiff', { pa: b === cm ? fr(a, b) : chain([fr(a, b), fr(a * cm / b, cm)], '='), pc: d === cm ? fr(c, d) : chain([fr(c, d), fr(c * cm / d, cm)], '='), a: fr(a, b), c: fr(c, d), a2: fr(a * cm / b, cm), c2: fr(c * cm / d, cm), x: fr(res.n, res.d), cm, op: { raw: op === '+' ? '+' : '−' }, s: res.d === cm ? { html: lang => '<b>' + MQ.fmtVal(fr(res.n, res.d), lang) + '</b>' } : chain([fr(op === '+' ? a * cm / b + c * cm / d : a * cm / b - c * cm / d, cm), { html: lang => '<b>' + MQ.fmtVal(fr(res.n, res.d), lang) + '</b>' }], '=') }),
         wrong: mis && !mis.eq(res) ? [{ fields: { a: mis.n + '/' + mis.d } }] : []
       };
     }
@@ -222,7 +234,7 @@
           prompt: m('t.frac_mul.q2' + ctx, { a: fr(a, b), q }),
           widget: { type: 'input', fields: [field('a', res, ctx === 'eur' ? { unit: '€' } : ctx === 'km' ? { unit: 'km' } : {})] },
           diagnose: v => v.a && v.a.eq(q / b) && a !== 1 ? m('t.frac_mul.m.unitOnly', { u: fr(1, b) }) : null,
-          answer: m('c.num', { x: res }), explain: m('t.frac_mul.ex2', { a: fr(a, b), q, u: q / b, x: res, n: a }),
+          answer: m('c.num', { x: res }), explain: m('t.frac_mul.ex2', { a: fr(a, b), q, u: q / b, x: res, n: a, d: b }),
           wrong: a !== 1 ? [{ fields: { a: String(q / b) } }] : []
         };
       }
@@ -240,7 +252,7 @@
       return {
         prompt: m('t.frac_mul.q4', { b, c: fr(c, d), t: fr(x * c, b * d) }),
         widget: { type: 'input', fields: [field('a', new MQ.Q(x))] },
-        answer: m('c.num', { x }), explain: m('t.frac_mul.ex4', { b, c: fr(c, d), t: fr(x * c, b * d), x, p: x * c, q: b * d })
+        answer: m('c.num', { x }), explain: m('t.frac_mul.ex4', { b, c: fr(c, d), t: fr(x * c, b * d), x, p: x * c, q: b * d, d, cn: c })
       };
     }
   });
@@ -268,7 +280,12 @@
         return {
           prompt: m('t.verbalize.q2', { p: m(forms[pick].k, { a, b, c }) }),
           widget: { type: 'mc', options: r.shuffle(forms.map((f, i) => ({ label: m('c.expr', { e: E(...f.e) }), correct: i === pick }))) },
-          answer: m('c.expr', { e: E(...forms[pick].e) }), explain: m('t.verbalize.ex2')
+          answer: m('c.expr', { e: E(...forms[pick].e) }), explain: (() => {
+            const W = { '+': 'w.sum', '-': 'w.difference', '*': 'w.product', '/': 'w.quotient' }, f = forms[pick].e;
+            if (L === 2) return m('t.verbalize.exL2', { w: m(W[f[1]]), s: sOp(f[1]), e: E(...f) });
+            const main = { prodOfSum: '*', sumOfProd: '+', diffOfProd: '*', quotOfSum: '/' }[forms[pick].k.split('.').pop()];
+            const inner = { prodOfSum: [b, '+', c], sumOfProd: [a, '*', b], diffOfProd: [a, '-', b], quotOfSum: [a, '+', b] }[forms[pick].k.split('.').pop()];
+            return m(f.includes('(') ? 't.verbalize.exL3paren' : 't.verbalize.exL3noparen', { w: m(W[main]), s: sOp(main), w2: m(W[inner[1]]), p: E(...inner), e: E(...f) }); })()
         };
       }
       const b = r.int(3, 9), q = r.int(5, 15), rem = r.int(1, b - 1), a = b * q + rem;
@@ -355,7 +372,11 @@
         prompt: m('t.missing.q', { e: { expr: tokens.map(t => t === '=' ? '=' : t) } }),
         widget: { type: 'input', fields: [field('a', sol)] },
         diagnose: v => v.a && mis && v.a.eq(mis) && !mis.eq(sol) ? m('t.missing.m.inverse') : null,
-        answer: m('c.num', { x: sol }), explain: m(L === 4 ? 't.missing.ex4' : 't.missing.ex', { e: { expr: tokens.map(t => t === B ? sol : t) }, x: sol }),
+        answer: m('c.num', { x: sol }), explain: (() => { const e = { expr: tokens.map(t => t === B ? sol : t) };
+          if (L === 4) { const t1 = MQ.Q.of(rhs).sub(lhs[4]); return m('t.missing.ex4', { e, x: sol, l: calcList([[rhs, '-', lhs[4]], [t1, '/', lhs[0]]]) }); }
+          const [p, op, q] = lhs, inv = { '+': '-', '-': '+', '*': '/', '/': '*' }[op];
+          const row = p === B ? [rhs, inv, q] : (op === '+' || op === '*') ? [rhs, inv, p] : [p, op, rhs];
+          return m('t.missing.ex', { e, x: sol, l: calcList([row]) }); })(),
         wrong: mis && !mis.eq(sol) && mis.decimalPlaces() >= 0 && mis.n > 0 ? [{ fields: { a: mis.toDecimalString() } }] : [],
         ranges: [['solution', sol.toNumber(), 0, 1000000]]
       };
@@ -381,7 +402,7 @@
         prompt: m('c.calc', { e: { expr: tk } }),
         widget: { type: 'input', fields: [field('a', val)] },
         diagnose: v => v.a && mis && v.a.eq(mis) && !mis.eq(val) ? m(tk.includes('(') ? 't.expression.m.paren' : 't.expression.m.leftright') : null,
-        answer: m('c.num', { x: val }), explain: m(tk.includes('(') ? 't.expression.exParen' : 't.expression.ex', { e: { expr: tk }, x: val }),
+        answer: m('c.num', { x: val }), explain: m(tk.includes('(') ? 't.expression.exParen' : 't.expression.ex', { e: { expr: tk }, x: val, s: stepsOf(tk) }),
         wrong: mis && !mis.eq(val) && mis.n > 0 && mis.decimalPlaces() >= 0 ? [{ fields: { a: mis.toDecimalString() } }] : []
       };
     }
@@ -414,20 +435,21 @@
         return {
           prompt: m('t.program.q4'), figure: { htmlFig: chain4 },
           widget: { type: 'mc', options: r.shuffle(opts) },
-          answer: m('c.op', { o: sOp(hop), x: hk }), explain: m('t.program.ex4', { a: before, b: MQ.evalExpr([before, hop, hk]) })
+          answer: m('c.op', { o: sOp(hop), x: hk }), explain: (() => { const after = MQ.evalExpr([before, hop, hk]), inv = { '+': '-', '-': '+', '*': '/', '/': '*' }[steps[2][0]];
+            return m('t.program.ex4', { a: before, b: after, f: calcList([[start, steps[0][0], steps[0][1]]]), g: calcList([[end, inv, steps[2][1]]]), o: m('c.op', { o: sOp(hop), x: hk }) }); })()
         };
       }
       if (L === 3) {
         return {
           prompt: m('t.program.q3'), figure: { htmlFig: chain },
           widget: { type: 'input', fields: [field('a', new MQ.Q(start))] },
-          answer: m('c.num', { x: start }), explain: m('t.program.ex3', { inv: { html: lang => steps.slice().reverse().map(([op, k]) => (op === '+' ? '−' : op === '-' ? '+' : op === '*' ? MQ.i18n.divSign : MQ.i18n.mulSign) + ' ' + MQ.fmtNum(k, lang)).join(', ') }, x: start })
+          answer: m('c.num', { x: start }), explain: m('t.program.ex3', { l: (() => { let v = end; return calcList(steps.slice().reverse().map(([op, k]) => { const row = [v, { '+': '-', '-': '+', '*': '/', '/': '*' }[op], k]; v = MQ.evalExpr(row); return row; })); })(), inv: { html: lang => steps.slice().reverse().map(([op, k]) => (op === '+' ? '−' : op === '-' ? '+' : op === '*' ? MQ.i18n.divSign : MQ.i18n.mulSign) + ' ' + MQ.fmtNum(k, lang)).join(', ') }, x: start })
         };
       }
       return {
         prompt: m('t.program.q'), figure: { htmlFig: chain },
         widget: { type: 'input', fields: [field('a', end)] },
-        answer: m('c.num', { x: end }), explain: m('t.program.ex', { x: end })
+        answer: m('c.num', { x: end }), explain: (() => { let v = new MQ.Q(start); const rows = steps.map(([op, k]) => { const row = [v, op, k]; v = MQ.evalExpr(row); return row; }); return m('t.program.ex', { x: end, l: calcList(rows) }); })()
       };
     }
   });
@@ -451,7 +473,10 @@
       return {
         prompt: m('t.divisibility.q', { k }),
         widget: { type: 'bins', bins: [m('t.divisibility.yes', { k }), m('t.divisibility.no', { k })], items: r.shuffle(items) },
-        answer: m('c.binsAnswer'), explain: m('t.divisibility.ex' + k, { k })
+        answer: m('c.binsAnswer'), explain: m('t.divisibility.ex' + k, { k, l: { html: lang => items.slice().sort((x, y) => x.bin - y.bin).map(it => {
+          const ds = String(it.n).split('').map(Number), sum = ds.reduce((a, b) => a + b, 0), last2 = it.n % 100;
+          const why = (k === 3 || k === 9) ? ds.join(' + ') + ' = ' + sum : k === 4 ? String(last2).padStart(2, '0') + ' = 4 × ' + Math.floor(last2 / 4) + (last2 % 4 ? ' + ' + (last2 % 4) : '') : k === 6 ? '…' + (it.n % 10) + ', ' + ds.join(' + ') + ' = ' + sum : '…' + (it.n % 10);
+          return MQ.fmtNum(it.n, lang) + ': ' + why + (it.bin === 0 ? ' ✓' : ' ✗'); }).join('<br>') } })
       };
     }
   });
@@ -483,7 +508,7 @@
           prompt: m('t.divisors.q3', { a, b }),
           widget: { type: 'input', fields: [field('a', new MQ.Q(l))] },
           diagnose: v => v.a && v.a.eq(a * b) && a * b !== l ? m('t.divisors.m.product') : (v.a && v.a.toNumber() % a === 0 && v.a.toNumber() % b === 0 ? m('t.divisors.m.notLowest') : null),
-          answer: m('c.num', { x: l }), explain: m('t.divisors.ex3', { a, b, l, ma: { raw: [1, 2, 3, 4, 5, 6].map(i => a * i).join(', ') }, mb: { raw: [1, 2, 3, 4, 5, 6].map(i => b * i).join(', ') } }),
+          answer: m('c.num', { x: l }), explain: m('t.divisors.ex3', { a, b, l, ma: { raw: [1, 2, 3, 4, 5, 6].map(i => a * i).join(', ') }, mb: { raw: [1, 2, 3, 4, 5, 6].map(i => b * i).join(', ') }, la: { list: mults(a, l), sep: ', ' }, lb: { list: mults(b, l), sep: ', ' } }),
           wrong: a * b !== l ? [{ fields: { a: String(a * b) } }] : []
         };
       }
@@ -504,7 +529,7 @@
         const a = r.int(11, 89); let c = (Math.ceil(a / 10) * 10 + r.pick([0, 10, 20])) - a + r.pick([0, 100]); if (c <= 0) c += 10; const b = r.int(13, 87);
         const tk = r.chance(0.5) ? [a, '+', b, '+', c] : [25, '*', r.int(3, 19), '*', 4];
         const val = MQ.evalExpr(tk);
-        return { prompt: m('t.smart_calc.q1', { e: { expr: tk } }), widget: { type: 'input', fields: [field('a', val)] }, answer: m('c.num', { x: val }), explain: m(tk[1] === '+' ? 't.smart_calc.ex1a' : 't.smart_calc.ex1b', { e: { expr: tk }, x: val, s: (tk[1] === '+' ? tk[0] + tk[4] : 100) }) };
+        return { prompt: m('t.smart_calc.q1', { e: { expr: tk } }), widget: { type: 'input', fields: [field('a', val)] }, answer: m('c.num', { x: val }), explain: m(tk[1] === '+' ? 't.smart_calc.ex1a' : 't.smart_calc.ex1b', { e: { expr: tk }, x: val, s: (tk[1] === '+' ? tk[0] + tk[4] : 100), a: tk[0], b: tk[2], c: tk[4] }) };
       }
       if (L === 2) {
         const a = r.int(2, 30), b = r.int(2, 30), c = r.int(2, 30);
@@ -636,7 +661,7 @@
       return {
         prompt: m('t.graph_read.q4', { t: total, l: String.fromCharCode(65 + i) }), figure: MQ.fig.pieChart(parts.map(q => ({ q }))),
         widget: { type: 'input', fields: [field('a', ans)] },
-        answer: m('c.num', { x: ans }), explain: m('t.graph_read.ex4', { f: fr(parts[i].n, parts[i].d), t: total, x: ans, l: String.fromCharCode(65 + i) })
+        answer: m('c.num', { x: ans }), explain: m(parts[i].n === 1 ? 't.pie_read.ex3one' : 't.pie_read.ex3', { f: fr(parts[i].n, parts[i].d), t: total, x: ans, l: String.fromCharCode(65 + i), d: parts[i].d, n: parts[i].n, u: total / parts[i].d })
       };
     }
   });
