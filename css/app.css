@@ -375,3 +375,10 @@ body.contrast .summitbtn { background: #fff; border-color: #000; }
 
 /* simple language: more space between the lines of a word problem */
 body.simple .prompt .qtext { line-height: 1.6; }
+
+/* pupil options: checkbox level with its title, notes in normal weight */
+.pupilopts label { font-weight: normal; }
+.pupilopts .optrow input[type=checkbox] { margin-top: .3rem; flex: none; width: 1.2rem; height: 1.2rem; }
+.pupilopts .optrow small { color: var(--muted, #555); }
+.pupilopts label.optrow:not(.optsel) { display: flex; flex-direction: row; align-items: flex-start; }
+.pupilopts label.optrow:not(.optsel) > span { flex: 1; }

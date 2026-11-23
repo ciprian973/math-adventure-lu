@@ -270,6 +270,7 @@ window.I18N_DATA["lb"] = {
  "dash.objective": "Zil (Plan d'études)",
  "dash.open": "Opmaachen",
  "dash.optionsFor": "Optioune fir {n}",
+ "dash.optionsTab": "Optioune vum Kand",
  "dash.overview": "Iwwerbléck",
  "dash.pdf": "PDF-Rapport",
  "dash.pin": "PIN",

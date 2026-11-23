@@ -270,6 +270,7 @@ window.I18N_DATA["ro"] = {
  "dash.objective": "Obiectiv (Plan d'études)",
  "dash.open": "Deschide",
  "dash.optionsFor": "Opțiuni pentru {n}",
+ "dash.optionsTab": "Opțiunile copilului",
  "dash.overview": "Privire de ansamblu",
  "dash.pdf": "Raport PDF",
  "dash.pin": "PIN",

@@ -270,6 +270,7 @@ window.I18N_DATA["de"] = {
  "dash.objective": "Ziel (Plan d'études)",
  "dash.open": "Öffnen",
  "dash.optionsFor": "Optionen für {n}",
+ "dash.optionsTab": "Optionen des Kindes",
  "dash.overview": "Überblick",
  "dash.pdf": "PDF-Bericht",
  "dash.pin": "PIN",

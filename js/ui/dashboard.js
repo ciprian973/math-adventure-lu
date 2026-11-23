@@ -53,11 +53,11 @@
       ps.forEach(p => { const b = h('button', { type: 'button', role: 'tab', class: 'btn' + (p.id === selected ? ' primary' : ''), 'aria-selected': p.id === selected }, esc(p.name)); b.onclick = () => { selected = p.id; App().go('teacher'); }; sel.appendChild(b); });
       main.appendChild(sel);
       const tabs = h('div', { class: 'tabs', role: 'tablist' });
-      [['overview', 'dash.overview'], ['mastery', 'dash.mastery'], ['errors', 'dash.errors'], ['assign', 'dash.assign'], ['sets', 'dash.sets'], ['export', 'dash.export'], ['coverage', 'dash.coverage'], ['settings', 'ui.settings']].forEach(([id, k]) => { const b = h('button', { type: 'button', role: 'tab', class: 'tab' + (tab === id ? ' sel' : ''), 'aria-selected': tab === id }, t(k)); b.onclick = () => { tab = id; App().go('teacher'); }; tabs.appendChild(b); });
+      [['overview', 'dash.overview'], ['options', 'dash.optionsTab'], ['mastery', 'dash.mastery'], ['errors', 'dash.errors'], ['assign', 'dash.assign'], ['sets', 'dash.sets'], ['export', 'dash.export'], ['coverage', 'dash.coverage'], ['settings', 'ui.settings']].forEach(([id, k]) => { const b = h('button', { type: 'button', role: 'tab', class: 'tab' + (tab === id ? ' sel' : ''), 'aria-selected': tab === id }, t(k)); b.onclick = () => { tab = id; App().go('teacher'); }; tabs.appendChild(b); });
       main.appendChild(tabs);
       const p = ps.find(x => x.id === selected);
       const box = h('div', { class: 'dashbody' }); main.appendChild(box);
-      ({ overview: D.renderOverview, mastery: D.renderMastery, errors: D.renderErrors, assign: D.renderAssign, sets: D.renderSets, export: D.renderExport, coverage: D.renderCoverage, settings: D.renderSettings })[tab](box, p);
+      ({ overview: D.renderOverview, options: (b, pp) => b.appendChild(D.renderOptions(pp)), mastery: D.renderMastery, errors: D.renderErrors, assign: D.renderAssign, sets: D.renderSets, export: D.renderExport, coverage: D.renderCoverage, settings: D.renderSettings })[tab](box, p);
     },
 
     renderOverview(box, p) {
@@ -76,13 +76,12 @@
       box.appendChild(tbl);
       const del = h('button', { class: 'btn danger', type: 'button' }, '🗑 ' + t('dash.deletePupil', { n: esc(p.name) }));
       del.onclick = () => App().modal(`<p>${t('dash.confirmDelete', { n: esc(p.name) })}</p>`, [{ label: t('dash.delete'), cls: 'danger', fn: () => { G.deleteProfile(p.id); selected = null; App().header(); App().go('teacher'); } }, { label: t('ui.cancel') }]);
-      box.appendChild(D.renderOptions(p));
       box.appendChild(del);
     },
     /* options for one pupil (each child can have different ones) */
     renderOptions(p) {
       const c = h('div', { class: 'card form pupilopts' }); c.appendChild(h('h3', {}, '⚙️ ' + t('dash.optionsFor', { n: esc(p.name) })));
-      const box = (key, label, note, on, set) => { const l = h('label', { class: 'row optrow' }, `<input type="checkbox" ${on ? 'checked' : ''}> <span><b>${label}</b><br><small>${note}</small></span>`); l.querySelector('input').onchange = e => { set(e.target.checked); G.save(); App().header(); }; c.appendChild(l); };
+      const box = (key, label, note, on, set) => { const l = h('label', { class: 'optrow' }, `<input type="checkbox" ${on ? 'checked' : ''}> <span><b>${label}</b><br><small>${note}</small></span>`); l.querySelector('input').onchange = e => { set(e.target.checked); G.save(); App().header(); }; c.appendChild(l); };
       box('calm', t('dash.calm'), t('dash.calmNote'), !!p.calm, v => { p.calm = v; });
       box('simple', t('dash.simple'), t('dash.simpleNote'), !!p.simple, v => { p.simple = v; });
       // languages: of the calculation exercises, and of the terms shown on a tap
