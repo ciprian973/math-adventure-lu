@@ -83,6 +83,13 @@
     }
   });
 
+  /* the sum written with one carry forgotten (the leftmost column that really carries); null if nothing carries */
+  function addSlip(x, y) {
+    let c = 0, pos = -1;
+    for (let i = 0, a = x, b = y; a > 0 || b > 0; i++, a = Math.floor(a / 10), b = Math.floor(b / 10)) { const s = a % 10 + b % 10 + c; c = s >= 10 ? 1 : 0; if (c) pos = i; }
+    return pos < 0 ? null : x + y - Math.pow(10, pos + 1);
+  }
+  MQ.T.addSlip = addSlip;
   /* ---------------- mistake_calc (trouver l'erreur) ---------------- */
   T.add({
     id: 'mistake_calc', stage: 'no_calc', objectives: ['NO.2.4', 'NO.2.1', 'GC.2'], mt: [],
@@ -91,13 +98,14 @@
       const u = b % 10, t = b - u;
       if (u === 0) return this.gen(r, L);
       const p1 = a * u, p2 = a * t, y = a * b;
-      const wrongStep = r.int(0, 2);
+      let wrongStep = r.int(0, 2);
+      if (wrongStep === 2 && addSlip(p1, p2) === null) wrongStep = r.int(0, 1);
       // the carry from the units: (units digit of a) × u = 10·c + rest
       const du = a % 10, pu = du * u, c = Math.floor(pu / 10);
       if (wrongStep === 0 && c === 0) return this.gen(r, L);       // no carry to forget: pick another calculation
       const err = wrongStep === 0 ? p1 - 10 * c                    // forgotten carry
         : wrongStep === 1 ? p2 / 10                                // forgotten 0 (multiplying by tens)
-          : y + 100 * r.pick([1, -1]);                             // addition mistake
+          : addSlip(p1, p2);                                       // addition: a carry forgotten
       const shown = [p1, p2, y]; shown[wrongStep] = err;
       if (wrongStep < 2) shown[2] = shown[0] + shown[1];           // the addition is done correctly with the numbers written
       const lines = [
@@ -310,7 +318,7 @@
         { label: m('t.plausible.r.mag'), correct: kind === 'mag' },
         { label: m('t.plausible.r.last'), correct: kind === 'last' },
         { label: m('t.plausible.r.inverse'), correct: kind === 'ok' },
-        { label: m('t.plausible.r.looks'), correct: false }
+        { label: m('t.plausible.r.lastok'), correct: false }
       ];
       const ua = MQ.Q.of(a).mul(Math.pow(10, MQ.Q.of(a).decimalPlaces())).toNumber() % 10, ub = MQ.Q.of(b).toNumber() % 10;
       return {

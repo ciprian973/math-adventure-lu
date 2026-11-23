@@ -180,7 +180,7 @@
       const st = r.pick([['s1', false], ['s2', true], ['s3', false], ['s4', true], ['s5', false]]);
       return {
         prompt: m('t.angle_type.q4', { s: m('t.angle_type.' + st[0]) }),
-        widget: { type: 'tf', truth: st[1], reasons: r.shuffle([{ label: m('t.angle_type.r.' + st[0]), correct: true }, { label: m('t.angle_type.r.wrong1'), correct: false }, { label: m('t.angle_type.r.wrong2'), correct: false }]) },
+        widget: { type: 'tf', truth: st[1], reasons: r.shuffle([{ label: m('t.angle_type.r.' + st[0]), correct: true }, { label: m('t.angle_type.r.' + st[0] + '.w1'), correct: false }, { label: m('t.angle_type.r.' + st[0] + '.w2'), correct: false }]) },
         answer: m(st[1] ? 'c.true' : 'c.false'), explain: m('t.angle_type.r.' + st[0])
       };
     }
@@ -321,7 +321,7 @@
       const st = r.pick([['s1', false], ['s2', true], ['s3', true], ['s4', false], ['s5', true]]);
       return {
         prompt: m('t.tri_classify.q4', { s: m('t.tri_classify.' + st[0]) }),
-        widget: { type: 'tf', truth: st[1], reasons: r.shuffle([{ label: m('t.tri_classify.r.' + st[0]), correct: true }, { label: m('t.tri_classify.r.w1'), correct: false }, { label: m('t.tri_classify.r.w2'), correct: false }]) },
+        widget: { type: 'tf', truth: st[1], reasons: r.shuffle([{ label: m('t.tri_classify.r.' + st[0]), correct: true }, { label: m('t.tri_classify.r.' + st[0] + '.w1'), correct: false }, { label: m('t.tri_classify.r.' + st[0] + '.w2'), correct: false }]) },
         answer: m(st[1] ? 'c.true' : 'c.false'), explain: m('t.tri_classify.r.' + st[0])
       };
     }
@@ -347,7 +347,7 @@
       // (inclusive in French/German textbooks, exclusive in others), so 'trapezium' is offered only for a real trapezium
       if (L === 3) return { prompt: m('t.quad_classify.q3'), figure: fig, widget: { type: 'multi', options: ['square', 'rect', 'rhombus', 'para'].concat(type === 'trap' ? ['trap'] : []).map(k => ({ label: m('quad.' + k), correct: QPROPS[type].includes(k) })) }, answer: m('t.quad_classify.ans', { l: { list: QPROPS[type].map(k => m('quad.' + k)), sep: ', ' } }), explain: m('t.quad_classify.ex3.' + type) };
       const st = r.pick([['s1', true], ['s2', false], ['s3', true], ['s4', false], ['s5', true]]);
-      return { prompt: m('t.quad_classify.q4', { s: m('t.quad_classify.' + st[0]) }), widget: { type: 'tf', truth: st[1], reasons: r.shuffle([{ label: m('t.quad_classify.r.' + st[0]), correct: true }, { label: m('t.quad_classify.r.w1'), correct: false }, { label: m('t.quad_classify.r.w2'), correct: false }]) }, answer: m(st[1] ? 'c.true' : 'c.false'), explain: m('t.quad_classify.r.' + st[0]) };
+      return { prompt: m('t.quad_classify.q4', { s: m('t.quad_classify.' + st[0]) }), widget: { type: 'tf', truth: st[1], reasons: r.shuffle([{ label: m('t.quad_classify.r.' + st[0]), correct: true }, { label: m('t.quad_classify.r.' + st[0] + '.w1'), correct: false }, { label: m('t.quad_classify.r.' + st[0] + '.w2'), correct: false }]) }, answer: m(st[1] ? 'c.true' : 'c.false'), explain: m('t.quad_classify.r.' + st[0]) };
     }
   });
 
@@ -676,7 +676,7 @@
         const w = r.int(4, 12), h = r.int(2, Math.min(9, w - 1)); const P = 2 * (w + h);          // the length is the longer side
         const v = r.pick(['idea', 'area', 'half', 'calc', 'paren']);
         const wrongStep = v === 'idea' ? 0 : v === 'area' || v === 'half' ? 1 : 2;
-        const sgn = r.pick([2, -2, 10, -10]); const bad = v === 'paren' ? 2 * w + h : P + sgn;
+        const s0 = w + h; const bad = v === 'paren' ? 2 * w + h : s0 % 10 >= 5 ? P - 10 : s0 + 2;   // doubling with the carry forgotten, or + 2 instead of × 2
         const calc = (x, mid) => ({ html: lang => MQ.exprToString([2, '*', '(', w, '+', h, ')'], lang) + ' = ' + (mid ? MQ.exprToString(mid, lang) + ' = ' : '') + MQ.fmtNum(x, lang) + ' cm' });
         const steps = [
           m(v === 'idea' ? 't.formula.s1w' : 't.formula.s1'),
@@ -689,7 +689,7 @@
           wrong: [{ step: (wrongStep + 1) % 3, fields: { fix: P + ' cm' } }, { step: (wrongStep + 2) % 3, fields: { fix: P + ' cm' } }] };
       }
       const st = r.pick([['e1', true], ['e2', false], ['e3', true], ['e4', false]]);
-      return { prompt: m('t.formula.q4', { s: m('t.formula.' + st[0]) }), widget: { type: 'tf', truth: st[1], reasons: r.shuffle([{ label: m('t.formula.r.' + st[0]), correct: true }, { label: m('t.formula.r.w1'), correct: false }, { label: m('t.formula.r.w2'), correct: false }]) }, answer: m(st[1] ? 'c.true' : 'c.false'), explain: m('t.formula.r.' + st[0]) };
+      return { prompt: m('t.formula.q4', { s: m('t.formula.' + st[0]) }), widget: { type: 'tf', truth: st[1], reasons: r.shuffle([{ label: m('t.formula.r.' + st[0]), correct: true }, { label: m('t.formula.r.' + st[0] + '.w1'), correct: false }, { label: m('t.formula.r.' + st[0] + '.w2'), correct: false }]) }, answer: m(st[1] ? 'c.true' : 'c.false'), explain: m('t.formula.r.' + st[0]) };
     }
   });
 

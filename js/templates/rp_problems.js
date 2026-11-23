@@ -259,7 +259,30 @@
     }
   });
 
-  /* ---------------- rp_verify: find the wrong step in a solution ---------------- */
+  /* ---------------- rp_verify: find the wrong step in a solution ----------------
+   * The wrong line contains a mistake children really make, chosen by the operation:
+   * a forgotten carry (+), the smaller digit taken from the bigger one instead of borrowing (−),
+   * one group too many or too few (×), a decimal point in the wrong place (× and ÷ with decimals or by 10, 100, 1000). */
+  function slip(e, v, r) {
+    if (e.length !== 3) return { w: v.mul(10).isInt() && !v.isInt() ? v.mul(10) : v.add(MQ.Q.of(e[0])), kind: v.mul(10).isInt() && !v.isInt() ? 'point' : 'group' };
+    const a = MQ.Q.of(e[0]), op = e[1], b = MQ.Q.of(e[2]);
+    const dp = Math.max(a.decimalPlaces(), b.decimalPlaces(), v.decimalPlaces()), sc = Math.pow(10, dp);
+    const A = a.mul(sc).toNumber(), B = b.mul(sc).toNumber();
+    if (op === '+') { const w = A + B < 20 * sc ? null : MQ.T.addSlip(A, B); return w === null ? null : { w: new MQ.Q(w, sc), kind: 'carry' }; }
+    if (op === '-') {
+      let w = 0, p = 1, x = A, y = B; while (x > 0 || y > 0) { w += Math.abs(x % 10 - y % 10) * p; p *= 10; x = Math.floor(x / 10); y = Math.floor(y / 10); }
+      return w === A - B ? null : { w: new MQ.Q(w, sc), kind: 'borrow' };
+    }
+    const pow10 = q => q.isInt() && /^10+$/.test(String(q.toNumber()));
+    if (op === '/') return pow10(b) || !v.isInt() ? { w: v.mul(10), kind: 'point' } : { w: v.add(1), kind: 'one' };
+    if (op === '*') {
+      if (!a.isInt() || !b.isInt()) return { w: r.chance(0.5) ? v.mul(10) : v.div(10), kind: 'point' };
+      const [big, small] = a.gt(b) ? [a, b] : [b, a];
+      if (small.toNumber() < 3) return null;
+      return r.chance(0.5) ? { w: v.add(big), kind: 'group' } : { w: v.sub(big), kind: 'group' };
+    }
+    return null;
+  }
   T.add({
     id: 'rp_verify', stage: 'rp_check', objectives: ['RP.3.4', 'NO.2.4', 'GC.2'], mt: [],
     gen(r, L) {
@@ -268,8 +291,9 @@
       if (s.lines.some(ln => ln.msg)) return this.gen(r, L);
       const k = r.int(0, s.lines.length - 1);
       const vals = s.lines.map(ln => MQ.Q.of(ln.v));
-      const wrong = vals[k].add(r.pick([1, 10, -1, 2]) * (vals[k].isInt() ? 1 : 1)).add(vals[k].isInt() ? 0 : new MQ.Q(0));
-      if (wrong.n <= 0 || wrong.eq(vals[k])) return this.gen(r, L);
+      const sl = slip(s.lines[k].e, vals[k], r); if (!sl) return this.gen(r, L);
+      const wrong = sl.w, slipKind = sl.kind;
+      if (wrong.n <= 0 || wrong.eq(vals[k]) || s.lines[k].e.some(tk => (tk instanceof MQ.Q || typeof tk === 'number') && MQ.Q.of(tk).eq(wrong))) return this.gen(r, L);
       const shown = s.lines.map((ln, i) => i === k ? wrong : vals[i]);
       // recompute later lines from the shown wrong value to stay consistent
       const exprs = s.lines.map(ln => ln.e.slice());
@@ -280,11 +304,13 @@
         shown[i] = MQ.evalExpr(exprs[i]);
       }
       if (shown.some(x => x.n < 0)) return this.gen(r, L);
+      const chk = () => exprs.every((e, i) => i === k || MQ.evalExpr(e).eq(shown[i])) && exprs.slice(k + 1).every((e, ii) => { const i = k + 1 + ii; return e.every(tk => !(tk instanceof MQ.Q || typeof tk === 'number') || !vals.slice(k, i).some((v, j) => !shown[k + j].eq(v) && MQ.Q.of(tk).eq(v) && !MQ.Q.of(tk).eq(shown[k + j]))); });
+      if (!chk()) return this.gen(r, L);                       // a number happens to equal an earlier result: ambiguous, draw again
       return {
         prompt: m('t.rp_verify.q', { s: story(s), n: names(r, 1)[0] }),
         widget: { type: 'mistake', steps: exprs.map((e, i) => line(e, shown[i])), wrongStep: k, stepFb: Object.fromEntries(exprs.map((_, i) => i).filter(i => i > k).map(i => [i, m('t.rp_verify.m.later')])), fields: [field('fix', vals[k], { label: m('t.rp_verify.fix') })] },
-        chainCheck: () => exprs.every((e, i) => i === k || MQ.evalExpr(e).eq(shown[i])) && exprs.slice(k + 1).every((e, ii) => { const i = k + 1 + ii; return e.every(tk => !(tk instanceof MQ.Q || typeof tk === 'number') || !vals.slice(k, i).some((v, j) => !shown[k + j].eq(v) && MQ.Q.of(tk).eq(v) && !MQ.Q.of(tk).eq(shown[k + j]))); }),
-        answer: m('t.rp_verify.ans', { i: k + 1, x: vals[k] }), explain: m('t.rp_verify.ex', { i: k + 1, l: line(s.lines[k].e, vals[k]), x: s.answer })
+        chainCheck: chk,
+        answer: m('t.rp_verify.ans', { i: k + 1, x: vals[k] }), explain: m('t.rp_verify.ex', { i: k + 1, l: line(s.lines[k].e, vals[k]), x: s.answer, k: m('t.rp_verify.k.' + slipKind, { w: wrong }) })
       };
     }
   });
