@@ -90,15 +90,17 @@
     /* six stars per topic; each star needs the previous one. Counts only ever grow, so stars are never lost;
      * s.sk keeps the stars earned under the earlier (easier) rules. */
     MAXSTARS: 6,
+    // only answers right on the FIRST try count (a second try after feedback is learning, not mastery)
     STAR_RULES: [
-      { need: 10, count: s => s.correct },                                   // 1: 10 correct answers (any level)
-      { need: 8, count: s => G._c(s, 3) + G._c(s, 4) + G._c(s, 5) },        // 2: 8 at level 3 or higher
-      { need: 8, count: s => G._c(s, 4) + G._c(s, 5) },                     // 3: 8 at level 4 or higher → opens level 5
-      { need: 15, count: s => ((s.byLevel || {})[4] || {}).f || 0 },          // 4: 15 at level 4 right on the first try
-      { need: 3, count: s => G._c(s, 5) },                                   // 5: 3 extreme problems
-      { need: 10, count: s => G._c(s, 5) }                                   // 6: 10 extreme problems
+      { need: 10, count: s => [1, 2, 3, 4, 5].reduce((a, L) => a + G._f(s, L), 0) },  // 1: 10 first-try answers (any level)
+      { need: 8, count: s => G._f(s, 3) + G._f(s, 4) + G._f(s, 5) },                  // 2: 8 at level 3 or higher
+      { need: 8, count: s => G._f(s, 4) + G._f(s, 5) },                               // 3: 8 at level 4 or higher → opens level 5
+      { need: 15, count: s => G._f(s, 4) },                                            // 4: 15 at level 4
+      { need: 3, count: s => G._f(s, 5) },                                             // 5: 3 extreme problems
+      { need: 8, count: s => G._f(s, 5) }                                              // 6: 8 extreme problems
     ],
     _c(s, L) { return ((s.byLevel || {})[L] || { c: 0 }).c; },
+    _f(s, L) { return ((s.byLevel || {})[L] || {}).f || 0; },
     stars(p, sid) {
       const s = p.stages[sid]; if (!s) return 0;
       let st = 0; for (let k = 1; k <= G.MAXSTARS; k++) { if (k <= (s.sk || 0) || G.STAR_RULES[k - 1].count(s) >= G.STAR_RULES[k - 1].need) st = k; else break; }
@@ -133,7 +135,7 @@
       const sid = ctx.stage; const st = G.stage(p, sid); const L = ex.level; if (!st.byLevel[L]) st.byLevel[L] = { c: 0, a: 0 };
       const firstTry = ctx.tries === 1;
       const starsBefore = G.stars(p, sid), xBefore = G.extremeOpen(p, sid);
-      st.attempts++; st.byLevel[L].a++; p.stats.attempts++;
+      st.attempts++; st.byLevel[L].a++; p.stats.attempts++; st.last = today();
       if (ctx.correct) { st.correct++; st.byLevel[L].c++; p.stats.correct++; if (firstTry) st.byLevel[L].f = (st.byLevel[L].f || 0) + 1; }
       ev.starUp = G.stars(p, sid) > starsBefore ? G.stars(p, sid) : 0;
       ev.extremeOpened = !xBefore && G.extremeOpen(p, sid);
@@ -180,9 +182,11 @@
         const r = MQ.RNG(MQ.hashStr(t + p.id));
         const allStages = MQ.MAP.regions.flatMap(rg => rg.stages);
         const pref = p.assigned && p.assigned.length ? p.assigned : allStages;
-        const s1 = r.pick(pref);
+        // spaced review: the topic practised before that is fading most (long ago, and/or weak), else a random one
+        const rv = G.reviewStage(p, pref);
+        const s1 = rv ? rv.stage : r.pick(pref);
         p.quest = { date: t, done: false, tasks: [
-          { type: 'stage', stage: s1, goal: 5, n: 0 },
+          rv ? { type: 'review', stage: s1, goal: 5, n: 0, days: rv.days } : { type: 'stage', stage: s1, goal: 5, n: 0 },
           { type: 'level3', goal: 3, n: 0 },
           { type: 'nohint', goal: 4, n: 0 }
         ] };
@@ -192,16 +196,44 @@
     },
     questProgress(tk, ex, ctx, sid) {
       if (!ctx.correct) return;
-      if (tk.type === 'stage' && sid === tk.stage) tk.n++;
+      if ((tk.type === 'stage' || tk.type === 'review') && sid === tk.stage) tk.n++;
       if (tk.type === 'level3' && ex.level >= 3) tk.n++;
       if (tk.type === 'nohint' && !ctx.hints && ctx.tries === 1) tk.n++;
       tk.n = Math.min(tk.n, tk.goal);
+    },
+
+    /* ---- spaced review: which practised topic needs a refresh? ----
+     * score = days since last practice × (1.5 − recent first-try rate); only topics untouched for 3+ days */
+    lastPractised(p, sid) {
+      const st = p.stages[sid]; if (st && st.last) return st.last;
+      for (let i = p.history.length - 1; i >= 0; i--) if (p.history[i].s === sid) return p.history[i].d;
+      return null;
+    },
+    reviewStage(p, among) {
+      const t = today(); let best = null;
+      among.forEach(sid => {
+        const st = p.stages[sid]; if (!st || st.attempts < 5) return;
+        const last = G.lastPractised(p, sid); if (!last) return;
+        const days = dayDiff(last, t); if (days < 3) return;
+        const rec = p.history.filter(h => h.s === sid).slice(-10); const rate = rec.length ? rec.filter(h => h.ok === 1).length / rec.length : 0.5;
+        const score = days * (1.5 - rate);
+        if (!best || score > best.score) best = { stage: sid, days, score };
+      });
+      return best;
     },
 
     /* ---- mastery of a curriculum objective (0..1, null if not practised) */
     mastery(p, oid) {
       const ob = p.objectives[oid]; if (!ob || !ob.a) return null;
       const rec = ob.recent; return rec.reduce((a, b) => a + b, 0) / rec.length;
+    },
+    /* a band rather than an exact percentage: 10 recent answers (some of them multiple choice) cannot say more.
+     * null = never practised; 'few' = fewer than 5 recent answers; then 'practice' < 50 % ≤ 'progress' < 80 % ≤ 'secure' */
+    masteryBand(p, oid) {
+      const ob = p.objectives[oid]; if (!ob || !ob.a) return null;
+      const rec = ob.recent || [], ok = rec.reduce((a, b) => a + b, 0);
+      const band = rec.length < 5 ? 'few' : ok / rec.length >= 0.8 ? 'secure' : ok / rec.length >= 0.5 ? 'progress' : 'practice';
+      return { band, ok, n: rec.length };
     },
     hashPin(pin) { return 'h' + MQ.hashStr('lux-math:' + pin).toString(36); }
   };

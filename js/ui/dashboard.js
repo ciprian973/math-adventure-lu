@@ -76,14 +76,24 @@
       box.appendChild(tbl);
       const del = h('button', { class: 'btn danger', type: 'button' }, '🗑 ' + t('dash.deletePupil', { n: esc(p.name) }));
       del.onclick = () => App().modal(`<p>${t('dash.confirmDelete', { n: esc(p.name) })}</p>`, [{ label: t('dash.delete'), cls: 'danger', fn: () => { G.deleteProfile(p.id); selected = null; App().header(); App().go('teacher'); } }, { label: t('ui.cancel') }]);
+      box.appendChild(D.renderOptions(p));
       box.appendChild(del);
+    },
+    /* options for one pupil (each child can have different ones) */
+    renderOptions(p) {
+      const c = h('div', { class: 'card form pupilopts' }); c.appendChild(h('h3', {}, '⚙️ ' + t('dash.optionsFor', { n: esc(p.name) })));
+      const box = (key, label, note, on, set) => { const l = h('label', { class: 'row optrow' }, `<input type="checkbox" ${on ? 'checked' : ''}> <span><b>${label}</b><br><small>${note}</small></span>`); l.querySelector('input').onchange = e => { set(e.target.checked); G.save(); App().header(); }; c.appendChild(l); };
+      box('calm', t('dash.calm'), t('dash.calmNote'), !!p.calm, v => { p.calm = v; });
+      return c;
     },
 
     /* mastery per curriculum objective, official French wording (PE) */
     renderMastery(box, p) {
       box.appendChild(h('p', { class: 'small' }, t('dash.masteryNote')));
       const C = MQ.CURRICULUM;
-      const row = (o) => { const m = G.mastery(p, o.id), ob = p.objectives[o.id]; const cls = m == null ? 'na' : m >= 0.8 ? 'good' : m >= 0.5 ? 'mid' : 'low'; return `<tr class="${cls}"><td class="oid">${o.id}</td><td>${esc(o.fr)}</td><td>${ob ? ob.a : 0}</td><td><span class="mbar"><i style="width:${m == null ? 0 : Math.round(100 * m)}%"></i></span> ${pct(m)}</td></tr>`; };
+      // shown as a band with the raw count ("in progress · 6 of the last 10"), not as an exact percentage
+      const row = (o) => { const b = G.masteryBand(p, o.id), ob = p.objectives[o.id]; const cls = !b ? 'na' : { secure: 'good', progress: 'mid', practice: 'low', few: 'na' }[b.band];
+        return `<tr class="${cls}"><td class="oid">${o.id}</td><td>${esc(o.fr)}</td><td>${ob ? ob.a : 0}</td><td>${b ? `<b>${t('dash.band.' + b.band)}</b> <small>· ${b.band === 'few' ? t('dash.bandSoFar', { n: b.n }) : t('dash.bandCount', { k: b.ok, n: b.n })}</small>` : '—'}</td></tr>`; };
       let html = `<table class="dtable mastery"><tr><th>ID</th><th>${t('dash.objective')}</th><th>n</th><th>${t('dash.masteryCol')}</th></tr>`;
       html += `<tr class="sec"><td colspan="4">${t('dash.general')}</td></tr>` + C.general.map(row).join('');
       C.domains.forEach(d => { html += `<tr class="sec"><td colspan="4">${esc(d.fr)} — ${t('domain.' + d.id)}</td></tr>`; d.competences.forEach(c => { html += `<tr class="sub"><td colspan="4">${c.id} ${esc(c.fr)}</td></tr>` + c.objectives.map(row).join(''); }); html += `<tr class="sub"><td colspan="4">${t('dash.contents')}</td></tr>` + d.contents.map(row).join(''); });
@@ -201,8 +211,8 @@
       const C = MQ.CURRICULUM; const objs = C.allObjectives();
       // a cell starting with = + - @ would run as a formula in a spreadsheet: put an apostrophe in front
       const q = s => { let v = String(s); if (/^[=+\-@\t\r]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; };
-      const lines = [['pupil', 'objective_id', 'objective_fr', 'attempts', 'first_try_correct', 'recent_mastery_pct'].join(';')];
-      list.forEach(p => objs.forEach(o => { const ob = p.objectives[o.id]; const m = G.mastery(p, o.id); lines.push([q(p.name), o.id, q(o.fr), ob ? ob.a : 0, ob ? ob.c : 0, m == null ? '' : Math.round(100 * m)].join(';')); }));
+      const lines = [['pupil', 'objective_id', 'objective_fr', 'attempts', 'first_try_correct', 'recent_first_try', 'recent_answers', 'band'].join(';')];
+      list.forEach(p => objs.forEach(o => { const ob = p.objectives[o.id]; const b = G.masteryBand(p, o.id); lines.push([q(p.name), o.id, q(o.fr), ob ? ob.a : 0, ob ? ob.c : 0, b ? b.ok : '', b ? b.n : '', b ? b.band : ''].join(';')); }));
       lines.push(''); lines.push(['pupil', 'stage', 'stars', 'level', 'attempts', 'correct', 'minutes'].join(';'));
       list.forEach(p => MQ.MAP.regions.flatMap(r => r.stages).forEach(sid => { const s = p.stages[sid]; lines.push([q(p.name), sid, G.stars(p, sid), s ? s.level : '', s ? s.attempts : 0, s ? s.correct : 0, mins(p.time.byStage[sid] || 0)].join(';')); }));
       const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });

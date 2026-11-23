@@ -55,6 +55,7 @@
     /* ---------------- header (always visible) ---------------- */
     header() {
       const s = G.settings(), p = G.active();
+      document.body.classList.toggle('calm', !!(p && p.calm));
       const hd = $('#topbar'); hd.innerHTML = '';
       const home = h('button', { class: 'brand', type: 'button', 'aria-label': t('ui.home') }, `${MQ.mascot(p ? p.avatar : {}, 40)}<span>${t('app.title')}</span>`);
       home.onclick = () => App.go(G.active() ? 'map' : 'profiles'); hd.appendChild(home);
@@ -98,7 +99,8 @@
     },
     closeModal() { document.querySelectorAll('.overlay').forEach(o => o.remove()); },
     toast(html, ms = 2600) { const e = h('div', { class: 'toast', role: 'status' }, html); document.body.appendChild(e); setTimeout(() => e.classList.add('show'), 10); setTimeout(() => { e.classList.remove('show'); setTimeout(() => e.remove(), 400); }, ms); },
-    confetti() { const c = h('div', { class: 'confetti', 'aria-hidden': 'true' }); for (let i = 0; i < 24; i++) { const s = h('i'); s.style.left = Math.random() * 100 + '%'; s.style.animationDelay = Math.random() * 0.3 + 's'; s.style.background = ['#ef3340', '#00a3e0', '#ffd23f', '#3bb273', '#7b3fa0'][i % 5]; c.appendChild(s); } document.body.appendChild(c); setTimeout(() => c.remove(), 1600); }
+    calm() { const p = G.active(); return !!(p && p.calm); },   // quiet mode: no confetti, pop-ups or XP numbers (set by an adult)
+    confetti() { if (App.calm()) return; const c = h('div', { class: 'confetti', 'aria-hidden': 'true' }); for (let i = 0; i < 24; i++) { const s = h('i'); s.style.left = Math.random() * 100 + '%'; s.style.animationDelay = Math.random() * 0.3 + 's'; s.style.background = ['#ef3340', '#00a3e0', '#ffd23f', '#3bb273', '#7b3fa0'][i % 5]; c.appendChild(s); } document.body.appendChild(c); setTimeout(() => c.remove(), 1600); }
   };
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   /* stars 4–6 of a topic are "super stars" (another colour) */
@@ -228,7 +230,7 @@
     },
     questModal(p) {
       const q = G.quest(p);
-      const rows = q.tasks.map(tk => `<li class="${tk.n >= tk.goal ? 'ok' : ''}"><span>${t('quest.' + tk.type, { s: { k: 'stage.' + tk.stage }, n: tk.goal })}</span><b>${tk.n}/${tk.goal}</b></li>`).join('');
+      const rows = q.tasks.map(tk => `<li class="${tk.n >= tk.goal ? 'ok' : ''}"><span>${t('quest.' + tk.type, { s: { k: 'stage.' + tk.stage }, n: tk.goal, d: tk.days || 0 })}</span><b>${tk.n}/${tk.goal}</b></li>`).join('');
       App.modal(`<h2>📜 ${t('ui.dailyQuest')}</h2><ul class="qlist">${rows}</ul><p>${t('ui.questReward')}</p>`, [{ label: t('ui.ok'), cls: 'primary' }].concat(q.tasks[0].n < q.tasks[0].goal ? [{ label: t('ui.goQuest'), fn: () => App.go('play', { stage: q.tasks[0].stage, mode: 'practice' }) }] : []));
     },
 
@@ -539,13 +541,14 @@
       this.lastRes = { kind: correct ? 'ok' : 'solution', fb: res.fb, ev, praise: 'praise.' + (1 + Math.floor(Math.random() * 8)) };
       this.widget.lock(); this.widget.reveal && !correct && this.widget.reveal();
       this.showFeedback(this.lastRes); this.saveCur(); this.updateButtons(); App.header();
-      if (ev.leagueUp) setTimeout(() => { const lg = G.LEAGUES[ev.leagueUp]; MQ.audio.play('badge'); App.confetti(); App.modal(`<div class="leagueup"><div class="lgicon">${lg.icon}</div><h2>${t('ui.leagueUpTitle')}</h2><p>${t('ui.leagueUp', { l: { k: 'league.' + lg.id } })}</p>${MQ.MAP.avatar.frame.some(f => f.league === ev.leagueUp) ? `<p class="small">${t('ui.leagueFrame')}</p>` : ''}</div>`, [{ label: t('ui.letsGo'), cls: 'primary' }]); }, 400);
+      const calm = App.calm();
+      if (ev.leagueUp && !calm) setTimeout(() => { const lg = G.LEAGUES[ev.leagueUp]; MQ.audio.play('badge'); App.confetti(); App.modal(`<div class="leagueup"><div class="lgicon">${lg.icon}</div><h2>${t('ui.leagueUpTitle')}</h2><p>${t('ui.leagueUp', { l: { k: 'league.' + lg.id } })}</p>${MQ.MAP.avatar.frame.some(f => f.league === ev.leagueUp) ? `<p class="small">${t('ui.leagueFrame')}</p>` : ''}</div>`, [{ label: t('ui.letsGo'), cls: 'primary' }]); }, 400);
       { const ns = this.main.querySelector('.playbar .nextstar'); if (ns) ns.innerHTML = nextStarText(this.p, this.stage); }
       if (ev.starUp) { MQ.audio.play('level'); App.toast('🌟 ' + t('star.won' + ev.starUp, { s: { k: 'stage.' + this.stage } })); }
       if (ev.extremeOpened) setTimeout(() => App.toast('🏔️ ' + t('ui.extremeOpened', { s: { k: 'stage.' + this.stage } })), 2800);
-      if (ev.levelUp) { MQ.audio.play('level'); App.toast(`⭐ ${t('ui.levelUp', { n: G.level(this.p) })}`); }
-      ev.newBadges.forEach(b => { MQ.audio.play('badge'); const bt = MQ.badgeText(b); App.toast(`🏅 ${t('ui.newBadge', { b: { raw: bt.name + (bt.tierName ? ' · ' + bt.tierName : '') } })}`); });
-      { const big = ev.newBadges.map(b => MQ.badgeText(b)).filter(bt => bt.tier >= 3).sort((a, b) => b.tier - a.tier)[0]; if (big) setTimeout(() => { App.confetti(); App.modal(`<div class="badgeinfo">${MQ.medal(big.tier, big.icon, 140)}<h2>${big.name} <small>· ${big.tierName}</small></h2><p>${big.desc}</p></div>`, [{ label: t('ui.letsGo'), cls: 'primary' }]); }, 600); }
+      if (ev.levelUp && !calm) { MQ.audio.play('level'); App.toast(`⭐ ${t('ui.levelUp', { n: G.level(this.p) })}`); }
+      if (!calm) ev.newBadges.forEach(b => { MQ.audio.play('badge'); const bt = MQ.badgeText(b); App.toast(`🏅 ${t('ui.newBadge', { b: { raw: bt.name + (bt.tierName ? ' · ' + bt.tierName : '') } })}`); });
+      if (!calm) { const big = ev.newBadges.map(b => MQ.badgeText(b)).filter(bt => bt.tier >= 3).sort((a, b) => b.tier - a.tier)[0]; if (big) setTimeout(() => { App.confetti(); App.modal(`<div class="badgeinfo">${MQ.medal(big.tier, big.icon, 140)}<h2>${big.name} <small>· ${big.tierName}</small></h2><p>${big.desc}</p></div>`, [{ label: t('ui.letsGo'), cls: 'primary' }]); }, 600); }
       if (ev.questDone) App.toast('📜 ' + t('ui.questDone'));
       if (this.mode === 'blitz') { setTimeout(() => { if (!this.finished && Date.now() < this.deadline) this.advance(); }, correct ? 500 : 1400); }
       if (ev.suggestUp && this.mode === 'practice') setTimeout(() => App._player === this && App.modal(`${MQ.mascot(this.p.avatar, 90)}<h2>${t('ui.suggestUpTitle')}</h2><p>${t('ui.suggestUp', { l: { k: LEVEL_KEYS[this.ex.level + 1] } })}</p>`, [{ label: t('ui.yesHarder'), cls: 'primary', fn: () => { const st = G.stage(this.p, this.stage); st.level = Math.min(4, this.ex.level + 1); st.recent = []; G.save(); if (App._player === this) { App.toast('⬆️ ' + t('ui.levelNow', { l: { k: LEVEL_KEYS[st.level] } })); this.next(false, true); } } }, { label: t('ui.stayHere') }]), 700);
